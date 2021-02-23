@@ -77,9 +77,9 @@ static inline void free_node(node_t **head)
 
 static inline void print_node(node_t *node)
 {
-	while (node != NULL && node->next != NULL) {
-		node = node->next;
+	while (node != NULL) {
 		fprintf(stdout, "%lu -> ", node->index);
+		node = node->next;
 	}
 	fprintf(stdout, "NULL\n");
 }

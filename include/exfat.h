@@ -13,6 +13,7 @@
 
 #include "list.h"
 #include "list2.h"
+#include "stack.h"
 
 /**
  * Debug code
@@ -54,6 +55,8 @@ extern FILE *output;
 #define VOLUMEDIRTY   0x0002
 #define MEDIAFAILURE  0x0004
 #define CLEARTOZERO   0x0008
+
+#define MAX_NAME_LENGTH   255
 
 #define EXFAT_FIRST_CLUSTER  2
 #define EXFAT_BADCLUSTER     0xFFFFFFF7
