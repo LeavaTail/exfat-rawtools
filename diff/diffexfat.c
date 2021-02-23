@@ -19,6 +19,10 @@
 #include "diffexfat.h"
 #include "exfat.h"
 
+int get_sector(struct device_info *, void *, off_t, size_t);
+int get_cluster(struct device_info *, void *, off_t);
+int get_clusters(struct device_info *, void *, off_t, size_t);
+
 FILE *output = NULL;
 unsigned int print_level = PRINT_WARNING;
 struct device_info info1;
@@ -152,18 +156,42 @@ static int get_device_info(struct device_info *info)
 
 	if ((fd = open(info->name, O_RDWR)) < 0) {
 		pr_err("open: %s\n", strerror(errno));
-		return -1;
+		return -errno;
 	}
 
 	if (fstat(fd, &s) < 0) {
 		pr_err("stat: %s\n", strerror(errno));
 		close(fd);
-		return -1;
+		return -errno;
 	}
 
 	info->fd = fd;
 	info->total_size = s.st_size;
 	return 0;
+}
+
+/**
+ * exfat_check_filesystem - Whether or not exFAT filesystem
+ * @boot:                   boot sector pointer
+ *
+ * @return:                 1 (Image is exFAT filesystem)
+ *                          0 (Image isn't exFAT filesystem)
+ */
+int exfat_check_filesystem(struct exfat_bootsec *b, struct device_info *info)
+{
+	struct exfat_fileinfo *f;
+
+	if (strncmp((char *)b->FileSystemName, "EXFAT   ", 8))
+		return 0;
+
+	info->fat_offset = b->FatOffset;
+	info->heap_offset = b->ClusterHeapOffset;
+	info->root_offset = b->FirstClusterOfRootDirectory;
+	info->sector_size  = 1 << b->BytesPerSectorShift;
+	info->cluster_size = (1 << b->SectorsPerClusterShift) * info->sector_size;
+	info->cluster_count = b->ClusterCount;
+	info->fat_length = b->NumberOfFats * b->FatLength * info->sector_size;
+	return 1;
 }
 
 /**
@@ -175,6 +203,74 @@ static int free_dentry_list(struct device_info *info)
 {
 	free(info->root);
 	return 0;
+}
+
+/**
+ * get_sector - Get Raw-Data from any sector
+ * @info:       Target device information
+ * @data:       Sector raw data (Output)
+ * @index:      Start bytes
+ * @count:      The number of sectors
+ *
+ * @return       0 (success)
+ *              -1 (failed to read)
+ *
+ * NOTE: Need to allocate @data before call it.
+ */
+int get_sector(struct device_info *info, void *data, off_t index, size_t count)
+{
+	size_t sector_size = info->sector_size;
+
+	pr_debug("Get: Sector from 0x%lx to 0x%lx\n", index , index + (count * sector_size) - 1);
+	if ((pread(info->fd, data, count * sector_size, index)) < 0) {
+		pr_err("read: %s\n", strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+/**
+ * get_cluster - Get Raw-Data from any cluster
+ * @info:       Target device information
+ * @data:        cluster raw data (Output)
+ * @index:       Start cluster index
+ *
+ * @return        0 (success)
+ *               -1 (failed to read)
+ *
+ * NOTE: Need to allocate @data before call it.
+ */
+int get_cluster(struct device_info *info, void *data, off_t index)
+{
+	return get_clusters(info, data, index, 1);
+}
+
+/**
+ * get_clusters - Get Raw-Data from any cluster
+ * @info:       Target device information
+ * @data:         cluster raw data (Output)
+ * @index:        Start cluster index
+ * @num:          The number of clusters
+ *
+ * @return         0 (success)
+ *                -1 (failed to read)
+ *
+ * NOTE: Need to allocate @data before call it.
+ */
+int get_clusters(struct device_info *info, void *data, off_t index, size_t num)
+{
+	size_t clu_per_sec = info->cluster_size / info->sector_size;
+	off_t heap_start = info->heap_offset * info->sector_size;
+
+	if (index < 2 || index + num > info->cluster_count) {
+		pr_err("invalid cluster index %lu.\n", index);
+		return -1;
+	}
+
+	return get_sector(info,
+			data,
+			heap_start + ((index - 2) * info->cluster_size),
+			clu_per_sec * num);
 }
 
 /**
@@ -194,6 +290,8 @@ int main(int argc, char *argv[])
 	char buffer[CMDSIZE] = {0};
 	char cmdline[CMDSIZE] = {0};
 	static struct exfat_bootsec boot, boot2;
+	uint32_t clu = 0;
+	stack_t stack;
 	unsigned long x;
 
 	while ((opt = getopt_long(argc, argv,
@@ -245,19 +343,25 @@ int main(int argc, char *argv[])
 	count = pread(fd[0], &boot, SECSIZE, 0);
 	if (count < 0) {
 		pr_err("read: %s\n", strerror(errno));
-		ret = -count;
+		ret = -EIO;
 		goto device2_close;
 	}
 
 	if (pread(fd[1], &boot2, SECSIZE, 0) != count) {
 		pr_err("read: %s\n", strerror(errno));
-		ret = -count;
+		ret = -EIO;
 		goto device2_close;
 	}
 
 	if (memcmp(&boot, &boot2, SECSIZE)) {
 		pr_err("Boot sector is different.\n");
-		ret = -count;
+		ret = -EINVAL;
+		goto device2_close;
+	}
+
+	if (!exfat_check_filesystem(&boot, &info1)) {
+		pr_err("This is not exFAT filesystem.\n");
+		ret = -EINVAL;
 		goto device2_close;
 	}
 
@@ -265,8 +369,11 @@ int main(int argc, char *argv[])
 	if ((fp = popen(cmdline, "r")) == NULL) {
 		pr_err("popen %s: %s\n", cmdline, strerror(errno));
 		ret = -errno;
-		goto cmd_close;
+		goto device2_close;
 	}
+
+	if (init_stack(&stack))
+		goto cmd_close;
 
 	init_node(&bootlist);
 	init_node(&fatlist);
@@ -283,6 +390,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	printf("\n");
+	push(&stack, info1.root_offset);
 
 	pr_msg("===== Boot Region =====\n");
 	print_node(bootlist);
@@ -295,6 +403,8 @@ int main(int argc, char *argv[])
 	free_node(&fatlist);
 	free_node(&datalist);
 
+stack_release:
+	free_stack(&stack);
 cmd_close:
 	pclose(fp);
 device2_close:
