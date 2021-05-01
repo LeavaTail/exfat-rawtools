@@ -11,43 +11,17 @@
 #include <stdbool.h>
 #include <time.h>
 
+#include "print.h"
 #include "list.h"
 #include "list2.h"
 #include "stack.h"
+#include "utf8.h"
 
-/**
- * Debug code
- */
-extern unsigned int print_level;
-extern FILE *output;
-#define PRINT_ERR      1
-#define PRINT_WARNING  2
-#define PRINT_INFO     3
-#define PRINT_DEBUG    4
-
-#define print(level, fmt, ...) \
-	do { \
-		if (print_level >= level) { \
-			if (level == PRINT_DEBUG) \
-			fprintf( output, "(%s:%u): " fmt, \
-					__func__, __LINE__, ##__VA_ARGS__); \
-			else \
-			fprintf( output, "" fmt, ##__VA_ARGS__); \
-		} \
-	} while (0) \
-
-#define pr_err(fmt, ...)   print(PRINT_ERR, fmt, ##__VA_ARGS__)
-#define pr_warn(fmt, ...)  print(PRINT_WARNING, fmt, ##__VA_ARGS__)
-#define pr_info(fmt, ...)  print(PRINT_INFO, fmt, ##__VA_ARGS__)
-#define pr_debug(fmt, ...) print(PRINT_DEBUG, fmt, ##__VA_ARGS__)
-#define pr_msg(fmt, ...)   fprintf(output, fmt, ##__VA_ARGS__)
-
-#define SECSIZE          512
-#define CMDSIZE          1024
+#define SECTORSIZE       512
+#define NAMELENGHT       1024
 #define DENTRY_LISTSIZE  1024
 #define PATHNAME_MAX     4096
 #define DIRECTORY_FILES  1024
-
 /*
  * exFAT definition
  */
@@ -56,28 +30,28 @@ extern FILE *output;
 #define MEDIAFAILURE  0x0004
 #define CLEARTOZERO   0x0008
 
-#define MAX_NAME_LENGTH   255
+#define ENTRY_NAME_MAX          15
+#define MAX_NAME_LENGTH         255
 
 #define EXFAT_FIRST_CLUSTER  2
 #define EXFAT_BADCLUSTER     0xFFFFFFF7
 #define EXFAT_LASTCLUSTER    0xFFFFFFFF
 
-struct device_info {
-	char name[255];
+struct exfat_info {
 	int fd;
-	uint32_t attr;
 	size_t total_size;
-	size_t sector_size;
-	size_t cluster_size;
+	uint64_t partition_offset;
+	uint32_t vol_size;
+	uint16_t sector_size;
+	uint32_t cluster_size;
 	uint16_t cluster_count;
-	unsigned short flags;
 	uint32_t fat_offset;
 	uint32_t fat_length;
 	uint32_t heap_offset;
 	uint32_t root_offset;
-	uint32_t root_length;
+	uint32_t alloc_offset;
+	size_t alloc_length;
 	uint8_t *alloc_table;
-	uint32_t alloc_cluster;
 	uint16_t *upcase_table;
 	size_t upcase_size;
 	uint16_t *vol_label;
@@ -259,17 +233,68 @@ static inline bool is_power2(unsigned int n)
 #define EXFAT_FAT(b)         (b.FatOffset * EXFAT_SECTOR(b))
 #define EXFAT_HEAP(b)        (b.ClusterHeapOffset * EXFAT_SECTOR(b))
 
-/* General function */
-int get_sector(void *, int, off_t);
-int get_sectors(void *, int, off_t, size_t);
-int get_cluster(void *, off_t);
-int get_clusters(void *, off_t, size_t);
-int set_sector(void *, int, off_t);
-int set_sectors(void *, int, off_t, size_t);
-int set_cluster(void *, off_t);
-int set_clusters(void *, off_t, size_t);
-int print_sector(uint32_t);
-int print_cluster(uint32_t);
-void hexdump(void *, size_t);
+static inline uint64_t exfat_offset(struct exfat_info i, uint32_t clu)
+{
+	return ((i.heap_offset * i.sector_size) + clu * i.cluster_size);
+}
+
+/* Generic function prototype */
+int get_sector(void *data, off_t index, size_t count);
+int set_sector(void *data, off_t index, size_t count);
+int get_cluster(void *data, off_t index);
+int set_cluster(void *data, off_t index);
+int get_clusters(void *data, off_t index, size_t num);
+int set_clusters(void *data, off_t index, size_t num);
+void exfat_init_info(struct exfat_info info);
+int exfat_clean_info(struct exfat_info info);
+static uint32_t exfat_concat_cluster(struct exfat_fileinfo *, uint32_t, void **);
+static uint32_t exfat_set_cluster(struct exfat_fileinfo *, uint32_t, void *);
+
+/* Boot sector function prototype */
+static int exfat_load_bootsec(struct exfat_bootsec *);
+static void exfat_print_upcase(void);
+static void exfat_print_label(void);
+static void exfat_print_fat(void);
+static void exfat_print_bitmap(void);
+static int exfat_load_bitmap(uint32_t);
+static int exfat_save_bitmap(uint32_t, uint32_t);
+static int exfat_load_bitmap_cluster(struct exfat_dentry);
+static int exfat_load_upcase_cluster(struct exfat_dentry);
+static int exfat_load_volume_label(struct exfat_dentry);
+
+/* FAT-entry function prototype */
+static uint32_t exfat_get_fat(uint32_t);
+static uint32_t exfat_set_fat(uint32_t, uint32_t);
+static int exfat_set_fat_chain(struct exfat_fileinfo *, uint32_t);
+
+/* cluster function prototype */
+static int exfat_get_last_cluster(struct exfat_fileinfo *, uint32_t);
+static int exfat_alloc_clusters(struct exfat_fileinfo *, uint32_t, size_t);
+static int exfat_free_clusters(struct exfat_fileinfo *, uint32_t, size_t);
+static int exfat_new_clusters(size_t);
+
+/* Directory chain function prototype */
+static void exfat_print_cache(void);
+static int exfat_check_cache(uint32_t);
+static int exfat_get_cache(uint32_t);
+static int exfat_load_extra_entry(void);
+static int exfat_traverse_directory(uint32_t);
+static int exfat_clean_cache(uint32_t);
+
+/* File function prototype */
+static void exfat_create_cache(node2_t *head, uint32_t clu,
+		struct exfat_dentry *file, struct exfat_dentry *stream, uint16_t *uniname);
+static uint16_t exfat_calculate_checksum(unsigned char *, unsigned char);
+static uint32_t exfat_calculate_tablechecksum(unsigned char *, uint64_t);
+static uint16_t exfat_calculate_namehash(uint16_t *, uint8_t);
+static int exfat_update_filesize(struct exfat_fileinfo *f, uint32_t clu);
+
+/* File Name function prototype */
+static void exfat_convert_unixtime(struct tm *t, uint32_t time, uint8_t subsec, uint8_t tz);
+static int exfat_convert_timezone(uint8_t tz);
+static void exfat_convert_uniname(uint16_t *uniname, uint64_t name_len, unsigned char *name);
+static void exfat_convert_uniname(uint16_t *, uint64_t, unsigned char *);
+static uint16_t exfat_convert_upper(uint16_t);
+static void exfat_convert_upper_character(uint16_t *, size_t, uint16_t *);
 
 #endif /*_EXFAT_H */

@@ -58,10 +58,30 @@ static inline void append_node(node_t **head, uint64_t i)
 	tail->next = node;
 }
 
+static inline int delete_node(node_t **head, uint64_t min, uint64_t max)
+{
+	int count = 0;
+	node_t *tmp;
+
+	while (*head != NULL) {
+		if (((*head)->index >= min) && ((*head)->index < max)) {
+			tmp = *head;
+			printf("DEL: %lu(%p)\n", tmp->index, tmp);
+			*head = (*head)->next;
+			free(tmp);
+			count++;
+		} else {
+			head = &((*head)->next);
+		}
+	}
+	return count;
+}
+
 static inline void free_node(node_t **head)
 {
 	node_t *tmp = *head;
 
+	//printf("DEL: %lu(%p)\n", tmp->index, tmp);
 	if (!tmp)
 		return;
 

@@ -43,6 +43,9 @@ m4/ltversion.m4
 m4/lt~obsolete.m4
 
 # Generate object file by source code
+common/*.o
+common/.deps
+common/.dirstamp
 diff/*.o
 diff/.deps
 diff/.dirstamp
@@ -55,3 +58,12 @@ diffexfat.8
 # can automatically generate from config.status script
 # (which is called by configure script))
 Makefile
+
+# man page can be generated
+*.8
+
+# Temporary files
+compile_flags.txt
+config.h.in~
+*/.deps
+*/.dirstamp

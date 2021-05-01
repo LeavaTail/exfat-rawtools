@@ -1,12 +1,12 @@
 bin_PROGRAMS = diffexfat
-diffexfat_SOURCES = diff/diffexfat.c
+diffexfat_SOURCES = diff/diffexfat.c common/print.c common/utf8.h common/exfat.c
 man_MANS = diffexfat.8
 
-EXTRA_DIST = include
-AM_CPPFLAGS = -I$(top_srcdir)/include
+EXTRA_DIST = common
+AM_CPPFLAGS = -I$(top_srcdir)/common
 
 if DEBUG
-AM_CPPFLAGS += -O0 -g3 -Wall -DDIFFEXFAT_DEBUG
+AM_CPPFLAGS += -O0 -g3 -Wall -DSTATEXFAT_DEBUG
 else
 AM_CPPFLAGS += -O2
 endif
