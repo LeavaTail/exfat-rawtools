@@ -51,8 +51,9 @@ config.h
 # (which is called by configure script))
 Makefile
 
-# man page can be generated
+# result file
 *.8
+checkexfat
 
 # Temporary files
 compile_flags.txt
