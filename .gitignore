@@ -54,6 +54,7 @@ Makefile
 # result file
 *.8
 checkexfat
+statexfat
 
 # Temporary files
 compile_flags.txt
