@@ -1337,8 +1337,11 @@ int exfat_traverse_root_directory(void)
 	int i;
 	uint8_t bitmap = 0x00;
 	uint32_t clu = info.root_offset;
+	uint32_t next_clu = info.root_offset;
 	void *data;
+	struct exfat_fileinfo *root = (struct exfat_fileinfo *)info.root[0]->data;
 	struct exfat_dentry d;
+	size_t allocated = 0;
 
 	data = malloc(info.cluster_size);
 	get_cluster(data, clu);
@@ -1370,6 +1373,10 @@ out:
 		pr_err("Root Directory doesn't have important entry (%0x)\n", bitmap);
 		return -1;
 	}
+
+	for (allocated = 0; next_clu != EXFAT_LASTCLUSTER && next_clu != 0; allocated++)
+		next_clu = exfat_next_cluster(root, next_clu);
+	root->datalen = info.cluster_size * allocated;
 
 	return exfat_traverse_directory(clu);
 }
@@ -1403,10 +1410,6 @@ int exfat_traverse_directory(uint32_t clu)
 	get_cluster(data, clu);
 
 	cluster_num = exfat_concat_cluster(f, clu, &data);
-	if (f->datalen != info.cluster_size * cluster_num) {
-		f->datalen = info.cluster_size * cluster_num;
-		pr_debug("Update directory size to %lu in clu#%u cache.\n", f->datalen, clu);
-	}
 	entries = (cluster_num * info.cluster_size) / sizeof(struct exfat_dentry);
 	for (i = 0; i < entries; i++) {
 		d = ((struct exfat_dentry *)data)[i];

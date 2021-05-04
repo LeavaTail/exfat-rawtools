@@ -82,7 +82,6 @@ int main(int argc, char *argv[])
 	uint32_t clu = 0;
 	struct exfat_bootsec boot;
 	uint8_t *alloc_table = NULL;
-	unsigned int print_level_tmp;
 
 	while ((opt = getopt_long(argc, argv,
 					"",
@@ -129,11 +128,8 @@ int main(int argc, char *argv[])
 		goto out;
 
 	/* Ignore errot message in Root Directory */
-	print_level_tmp = print_level;
-	print_level = 0;
 	if (exfat_traverse_root_directory())
 		goto out;
-	print_level = print_level_tmp;
 
 	alloc_table = calloc(info.cluster_size, 1);
 	if (!alloc_table)
