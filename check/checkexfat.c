@@ -123,6 +123,10 @@ int main(int argc, char *argv[])
 		goto out;
 	if (exfat_store_info(&boot))
 		goto out;
+	if (exfat_check_extend_bootsec())
+		goto out;
+	if (exfat_check_bootchecksum())
+		goto out;
 
 	/* Ignore errot message in Root Directory */
 	print_level_tmp = print_level;

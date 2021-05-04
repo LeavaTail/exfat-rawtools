@@ -384,6 +384,83 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 	return ret;
 }
 
+/**
+ * exfat_check_extend_bootsec - verify extended boot sector
+ *
+ * @return                      0 (success)
+ *                              Negative (failed)
+ */
+int exfat_check_extend_bootsec(void)
+{
+	int i;
+	int ret = 0;
+	uint32_t *b;
+	int index = info.sector_size / sizeof(uint32_t) - 1;
+
+	if ((b = calloc(info.sector_size, 1)) == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < 8; i++) {
+		if (get_sector(b, info.sector_size * (i + 1), 1)) {
+			free(b);
+			return -EIO;
+		}
+		if (b[index] != 0xAA550000) {
+			pr_err("invalid ExtendedBootSignature: 0x%08x\n", b[index]);
+			ret = -EINVAL;
+		}
+	}
+
+	free(b);
+	return ret;
+}
+
+/**
+ * exfat_check_bootchecksum - verify Main Boot region checksum
+ *
+ * @return                    0 (success)
+ *                            Negative (failed)
+ */
+int exfat_check_bootchecksum(void)
+{
+	int i;
+	uint8_t *b;
+	uint32_t *bootchecksum = NULL;
+	uint32_t checksum = 0;
+
+	if ((b = calloc(info.sector_size, 11)) == NULL)
+		return -ENOMEM;
+
+	if (get_sector(b, 0, 11)) {
+		free(b);
+		return -EIO;
+	}
+	checksum = exfat_calculate_bootchecksum(b, info.sector_size);
+
+	if ((bootchecksum = calloc(info.sector_size, 1)) == NULL) {
+		free(b);
+		return -ENOMEM;
+	}
+
+	if (get_sector(bootchecksum, info.sector_size * 11, 1)) {
+		free(bootchecksum);
+		free(b);
+		return -EIO;
+	}
+
+	for (i = 0; i < info.sector_size / sizeof(uint32_t); i++) {
+		if (bootchecksum[i] != checksum) {
+			pr_err("Boot region checksum(%08x) is unmatched.\n", checksum);
+			free(bootchecksum);
+			free(b);
+			return -EINVAL;
+		}
+	}
+
+	free(b);
+	return 0;
+}
+
 /*************************************************************************************************/
 /*                                                                                               */
 /* FAT-ENTRY FUNCTION                                                                            */
@@ -1385,6 +1462,31 @@ int exfat_traverse_directory(uint32_t clu)
 	}
 	free(data);
 	return 0;
+}
+
+/**
+ * exfat_calculate_bootchecksum - Calculate Boot region Checksum
+ * @sectors:                      points to an in-memory copy of the 11 sectors
+ * @bps:                          bytes per sector
+ *
+ * @return                        Checksum
+ */
+uint32_t exfat_calculate_bootchecksum(unsigned char *sectors, unsigned short bps)
+{
+	uint32_t bytes = (uint32_t)bps * 11;
+	uint32_t checksum = 0;
+	uint32_t index;
+
+	for (index = 0; index < bytes; index++)
+	{
+		if ((index == 106) || (index == 107) || (index == 112))
+		{
+			continue;
+		}
+		checksum = ((checksum & 1) ? 0x80000000 : 0) + (checksum >> 1) + (uint32_t)sectors[index];
+	}
+
+	return checksum;
 }
 
 /**
