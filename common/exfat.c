@@ -346,6 +346,11 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
+	if (b->FileSystemRevision < 0x0100) {
+		pr_err("invalid FileSystemRevision: 0x%04x\n", b->FileSystemRevision);
+		ret = -EINVAL;
+	}
+
 	if ((b->FirstClusterOfRootDirectory < 2) || (b->ClusterCount + 1 < b->FirstClusterOfRootDirectory)) {
 		pr_err("invalid FirstClusterOfRootDirectory: 0x%x\n", b->FirstClusterOfRootDirectory);
 		ret = -EINVAL;
