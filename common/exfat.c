@@ -340,8 +340,8 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
-	if ((b->ClusterCount < (b->VolumeLength - b->ClusterHeapOffset) / power2(b->SectorsPerClusterShift))
-		|| (power2(32) - 11 < b->ClusterCount)) {
+	if (((b->VolumeLength - b->ClusterHeapOffset) / power2(b->SectorsPerClusterShift) != b->ClusterCount)
+		&& (power2(32) - 11 != b->ClusterCount)) {
 		pr_err("invalid ClusterCount: 0x%x\n", b->ClusterCount);
 		ret = -EINVAL;
 	}
