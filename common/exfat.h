@@ -260,6 +260,8 @@ int exfat_store_info(struct exfat_bootsec *);
 int exfat_clean_info(void);
 int exfat_load_bootsec(struct exfat_bootsec *);
 int exfat_check_bootsec(struct exfat_bootsec *);
+int exfat_check_extend_bootsec(void);
+int exfat_check_bootchecksum(void);
 
 /* FAT-entry function prototype */
 uint32_t exfat_get_fat(uint32_t);
@@ -299,6 +301,7 @@ int exfat_load_volume_label(struct exfat_dentry);
 /* File function prototype */
 int exfat_traverse_root_directory(void);
 int exfat_traverse_directory(uint32_t);
+uint32_t exfat_calculate_bootchecksum(unsigned char *, unsigned short);
 uint16_t exfat_calculate_checksum(unsigned char *, unsigned char);
 uint32_t exfat_calculate_tablechecksum(unsigned char *, uint64_t);
 uint16_t exfat_calculate_namehash(uint16_t *, uint8_t);

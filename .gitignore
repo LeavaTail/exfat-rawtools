@@ -43,15 +43,7 @@ m4/ltversion.m4
 m4/lt~obsolete.m4
 
 # Generate object file by source code
-common/*.o
-common/.deps
-common/.dirstamp
-diff/*.o
-diff/.deps
-diff/.dirstamp
 config.h
-diffexfat
-diffexfat.8
 
 # Generated Makefile 
 # (meta build system like autotools, 
@@ -59,11 +51,16 @@ diffexfat.8
 # (which is called by configure script))
 Makefile
 
-# man page can be generated
+# result file
 *.8
+checkexfat
+statexfat
 
 # Temporary files
 compile_flags.txt
 config.h.in~
-*/.deps
-*/.dirstamp
+.deps
+
+# Test files
+test-suite.log
+*.img
