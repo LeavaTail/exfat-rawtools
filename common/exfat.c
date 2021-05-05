@@ -837,7 +837,7 @@ uint32_t exfat_next_cluster(struct exfat_fileinfo *f, uint32_t clu)
 	}
 
 	if (next_clu != EXFAT_LASTCLUSTER && exfat_load_bitmap(next_clu) != 1) {
-		pr_err("cluster %u isn't allocated.\n", next_clu);
+		pr_err("Cluster#%u isn't allocated.\n", next_clu);
 		return 0;
 	}
 
@@ -1435,7 +1435,7 @@ int exfat_traverse_directory(uint32_t clu)
 					next = ((struct exfat_dentry *)data)[++i + 1];
 				}
 				if (next.EntryType != DENTRY_STREAM) {
-					pr_info("File should have stream entry, but This don't have.\n");
+					pr_warn("File should have stream entry, but This don't have.\n");
 					continue;
 				}
 				/* Filename entry */
@@ -1445,8 +1445,8 @@ int exfat_traverse_directory(uint32_t clu)
 					name = ((struct exfat_dentry *)data)[++i + 2];
 				}
 				if (name.EntryType != DENTRY_NAME) {
-					pr_info("File should have name entry, but This don't have.\n");
-					return -1;
+					pr_warn("File should have name entry, but This don't have.\n");
+					continue;
 				}
 				name_len = next.dentry.stream.NameLength;
 				for (j = 0; j < remaining - 1; j++) {
