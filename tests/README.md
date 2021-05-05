@@ -47,6 +47,25 @@ The percentage of clusters      :          0 (%)
     `-- FILE3.TXT
 ```
 
+**error.img**
+
+```
+.
+|-- 0_BITMAP
+|   |-- FILE1.TXT
+|   `-- FILE2.TXT
+|-- 1_FAT
+|   `-- FILE6.TXT
+|-- 2_LOOP
+|-- 3_DOUBLE
+|   |-- FILE3.TXT
+|   `-- FILE4.TXT
+`-- 4_FILESIZE
+    |-- FILE5.TXT
+    `-- FILE7.TXT
+```
+
+
 ## Cluster_Contents
 
 **exfat.img**
@@ -73,4 +92,28 @@ The percentage of clusters      :          0 (%)
 | 19      | FILE4.TXT [3]     | X          | 8194              |
 | 20      | FILE2.TXT [3]     |            | 8194              |
 | 21      | FILE3.TXT [3]     |            | 8194              |
+
+**error.img**
+
+| Cluster | Description       | NOFATCHAIN | File size (Bytes) | Error Point                         |
+| :------ | :---------------- | :--------: | ----------------: | :---------------------------------- |
+| 2       | Allocation Bitmap |            | 4032              |                                     |
+| 3       | Up-case Table [1] |            | 5836              |                                     |
+| 4       | Up-case Table [2] |            | 5836              |                                     |
+| 5       | Root Directory    |            | 4096              |                                     |
+| 6       | 0\_BITMAP         | X          | 4096              |                                     |
+| 7       | 1\_FAT            | X          | 4096              |                                     |
+| 8       | 2\_LOOP           | X          | 4096              |                                     |
+| 9       | 3\_DOUBLE         | X          | 4096              |                                     |
+| 10      | 4\_FILESIZE       | X          | 4096              |                                     |
+| 11      | FILE1.TXT [1]     |            | 4098              |                                     |
+| 12      | FILE2.TXT         | X          | 2048              | Allocation Bitmap set 0             |
+| 13      | FILE1.TXT [2]     |            | 8194              | Allocation Bitmap set 0             |
+| 14      | FILE3.TXT         | X          | 4                 | FILE4 indicated same cluster        |
+| 15      | FILE4.TXT         | X          | 4                 | Not used in actual                  |
+| 16      | FILE5.TXT         | X          | 8192              | Filesize is changed from 4 Bytes    |
+| 17      | FILE6.TXT         |            | 4099              |                                     |
+| 18      | FILE7.TXT         |            | 4                 | Filesize is changed from 4097 Bytes |
+| 19      | FILE6.TXT [2]     |            | 8192              | FAT is not 0xFFFFFFFF               |
+| 20      | FILE7.TXT [2]     |            | 4                 | Not used in actual                  |
 
