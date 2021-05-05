@@ -7,6 +7,9 @@ statexfat_SOURCES = stat/statexfat.c common/print.c common/utf8.c common/exfat.c
 
 man_MANS = checkexfat.8 statexfat.8
 
+TESTS = tests/00_init.sh \
+        tests/01_simple_option_check.sh
+
 EXTRA_DIST = common
 AM_CPPFLAGS = -I$(top_srcdir)/common
 

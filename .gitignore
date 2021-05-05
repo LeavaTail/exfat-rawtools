@@ -60,3 +60,7 @@ statexfat
 compile_flags.txt
 config.h.in~
 .deps
+
+# Test files
+test-suite.log
+*.img
