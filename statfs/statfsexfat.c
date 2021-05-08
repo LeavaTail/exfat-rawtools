@@ -16,7 +16,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "statexfat.h"
+#include "statfsexfat.h"
 #include "exfat.h"
 
 FILE *output;
