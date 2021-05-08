@@ -1619,12 +1619,32 @@ out:
  */
 void exfat_convert_unixtime(struct tm *t, uint32_t time, uint8_t subsec, uint8_t tz)
 {
-	t->tm_year = (time >> EXFAT_YEAR) & 0x7f;
-	t->tm_mon  = (time >> EXFAT_MONTH) & 0x0f;
-	t->tm_mday = (time >> EXFAT_DAY) & 0x1f;
-	t->tm_hour = (time >> EXFAT_HOUR) & 0x1f;
-	t->tm_min  = (time >> EXFAT_MINUTE) & 0x3f;
-	t->tm_sec  = (time & 0x1f) * 2;
+	uint8_t sec, min, hour, day, mon, year = 0;
+	char buf[80] = {};
+
+	year = (time >> EXFAT_YEAR) & 0x7f;
+	mon  = (time >> EXFAT_MONTH) & 0x0f;
+	day = (time >> EXFAT_DAY) & 0x1f;
+	hour = (time >> EXFAT_HOUR) & 0x1f;
+	min  = (time >> EXFAT_MINUTE) & 0x3f;
+	sec  = (time & 0x1f);
+
+	sprintf(buf, "%d-%02d-%02d %02d:%02d:%02d",
+		1980 + year, mon, day, hour, min, (sec * 2) + (subsec / 100));
+
+	if ((mon < 1 || 12 < mon) ||
+		(day < 1 || 31 < day) ||
+		(23 < hour) ||
+		(59 < min) ||
+		(29 < sec || 199 < subsec))
+		pr_warn("Timestamp error: %s\n", buf);
+
+	t->tm_year = year;
+	t->tm_mon  = mon;
+	t->tm_mday = day;
+	t->tm_hour = hour;
+	t->tm_min  = min;
+	t->tm_sec  = sec * 2;
 	t->tm_sec += subsec / 100;
 	/* OffsetValid */
 	if (tz & 0x80) {
