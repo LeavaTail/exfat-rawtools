@@ -1666,6 +1666,79 @@ int exfat_convert_timezone(uint8_t tz)
 }
 
 /**
+ * exfat_lookup - function interface to lookup pathname
+ * @clu:          directory cluster index
+ * @name:         file name
+ *
+ * @return:       cluster index
+ *                0 (Not found)
+ */
+uint32_t exfat_lookup(uint32_t clu, char *name)
+{
+	int index, i = 0, depth = 0;
+	bool found = false;
+	char *path[MAX_NAME_LENGTH] = {};
+	char fullpath[PATHNAME_MAX + 1] = {};
+	node2_t *tmp;
+	struct exfat_fileinfo *f;
+
+	if (!name) {
+		pr_err("Internal Error: invalid pathname.\n");
+		return -EINVAL;
+	}
+
+	/* Absolute path */
+	if (name[0] == '/')
+		clu = info.root_offset;
+
+	/* Separate pathname by slash */
+	strncpy(fullpath, name, PATHNAME_MAX);
+	path[depth] = strtok(fullpath, "/");
+	while (path[depth] != NULL) {
+		if (depth >= MAX_NAME_LENGTH) {
+			pr_err("Pathname is too depth. (> %d)\n", MAX_NAME_LENGTH);
+			return -EINVAL;
+		}
+		path[++depth] = strtok(NULL, "/");
+	};
+
+	for (i = 0; path[i] && i < depth + 1; i++) {
+		pr_debug("Lookup %s in clu#%u\n", path[i], clu);
+		found = false;
+		index = exfat_get_cache(clu);
+		f = (struct exfat_fileinfo *)info.root[index]->data;
+		/* Directory doesn't cache yet */
+		if ((!info.root[index]) || (!(f->cached))) {
+			exfat_traverse_directory(clu);
+			index = exfat_get_cache(clu);
+			/* Directory doesn't exist */
+			if (!info.root[index]) {
+				pr_err("This Directory doesn't exist in filesystem.\n");
+				return -EINVAL;
+			}
+		}
+
+		tmp = info.root[index];
+		while (tmp->next != NULL) {
+			tmp = tmp->next;
+			f = (struct exfat_fileinfo *)tmp->data;
+			if (!strcmp(path[i], (char *)f->name)) {
+				clu = tmp->index;
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			pr_err("'%s': No such file or directory.\n", name);
+			return -EINVAL;
+		}
+	}
+
+	return clu;
+}
+
+/**
  * exfat_convert_uniname - function to get filename
  * @uniname:               filename dentry in UTF-16
  * @name_len:              filename length

@@ -308,6 +308,7 @@ uint16_t exfat_calculate_namehash(uint16_t *, uint8_t);
 int exfat_update_filesize(struct exfat_fileinfo *, uint32_t);
 void exfat_convert_unixtime(struct tm *, uint32_t, uint8_t, uint8_t);
 int exfat_convert_timezone(uint8_t);
+uint32_t exfat_lookup(uint32_t, char *);
 void exfat_convert_uniname(uint16_t *, uint64_t, unsigned char *);
 void exfat_convert_uniname(uint16_t *, uint64_t, unsigned char *);
 uint16_t exfat_convert_upper(uint16_t);

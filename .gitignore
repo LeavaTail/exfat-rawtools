@@ -55,6 +55,7 @@ Makefile
 *.8
 checkexfat
 statexfat
+lsexfat
 
 # Temporary files
 compile_flags.txt

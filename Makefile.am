@@ -1,8 +1,9 @@
-bin_PROGRAMS = checkexfat statexfat
+bin_PROGRAMS = checkexfat statexfat lsexfat
 checkexfat_SOURCES = check/checkexfat.c common/print.c common/utf8.c common/exfat.c
 statexfat_SOURCES = stat/statexfat.c common/print.c common/utf8.c common/exfat.c
+lsexfat_SOURCES = ls/lsexfat.c common/print.c common/utf8.c common/exfat.c
 
-man_MANS = checkexfat.8 statexfat.8
+man_MANS = checkexfat.8 statexfat.8 lsexfat.8
 
 TESTS = tests/00_init.sh \
         tests/01_simple_option_check.sh
@@ -20,3 +21,5 @@ checkexfat.8: checkexfat$(EXEEXT)
 	help2man --no-discard-stderr --section=8 -N -o checkexfat.8 ./checkexfat
 statexfat.8: statexfat$(EXEEXT)
 	help2man --no-discard-stderr --section=8 -N -o statexfat.8 ./statexfat
+lsexfat.8: lsexfat$(EXEEXT)
+	help2man --no-discard-stderr --section=8 -N -o lsexfat.8 ./lsexfat
