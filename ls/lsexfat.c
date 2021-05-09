@@ -163,6 +163,7 @@ int main(int argc, char *argv[])
 	int ret = -EINVAL;
 	struct exfat_bootsec boot;
 	uint32_t clu = 0;
+	uint32_t p_clu = 0;
 	char *path = NULL;
 
 	while ((opt = getopt_long(argc, argv,
@@ -227,11 +228,11 @@ int main(int argc, char *argv[])
 		for (i = strlen(path); i > 0 && path[i] != '/'; i--);
 		path[i] = '\0';
 
-		if ((clu = exfat_lookup(info.root_offset, path)) == 0) {
+		if ((p_clu = exfat_lookup(info.root_offset, path)) == 0) {
 			ret = ENOENT;
 			goto out;
 		}
-		index = exfat_get_cache(clu);
+		index = exfat_get_cache(p_clu);
 		exfat_print_file(index, clu);
 	}
 
