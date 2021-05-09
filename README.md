@@ -27,7 +27,7 @@ checkexfat can detect below exfat filesystem's failure.
 - Consistency of Allocation bitmap and actual use
 
 ```
-$ ./checkexfat tests/sample/error.img
+$ checkexfat tests/sample/error.img
 Cluster#13 isn't allocated.
 Cluster#32 isn't allocated.
 Cluster#14 is referenced from other cluster.
@@ -48,7 +48,7 @@ Cluster#15 isn't used at all.
 statfsexfat display information in Main Boot Sector.
 
 ```
-$ ./statfsexfat tests/sample/exfat.img
+$ statfsexfat tests/sample/exfat.img
 media-relative sector offset    : 0x00000000 (sector)
 Offset of the First FAT         : 0x00000800 (sector)
 Length of FAT table             :        256 (sector)
@@ -71,14 +71,14 @@ Writes down (in single-column format) the FileAttribute Field, DataLength Field,
 By default, the timestamp displayed is the last modification time.
 
 ```
-$ ./lsexfat exfat.img /
+$ lsexfat exfat.img /
 ---D-     4096 2021-05-05 01:48:47 0_SIMPLE
 ---D-     4096 2021-05-05 01:54:36 1_FILENAME
 ---D-     4096 2021-05-05 01:55:19 2_DELETED
 ---D-     4096 2021-05-05 01:53:19 3_NOFATCHAIN
 ---D-     4096 2021-05-05 01:53:05 4_FATCHAIN
 
-$ ./lsexfat exfat.img /0_SIMPLE/FILE.TXT
+$ lsexfat exfat.img /0_SIMPLE/FILE.TXT
 ----A        2 2021-05-05 01:48:42 FILE.TXT
 ```
 
@@ -93,7 +93,7 @@ $ ./lsexfat exfat.img /0_SIMPLE/FILE.TXT
 ## Install
 
 ```bash
-$ ./bootstrap.sh
+$ ./scripts/bootstrap.sh
 $ ./configure
 $ make
 $ sudo make install
