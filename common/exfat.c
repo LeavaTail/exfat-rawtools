@@ -233,7 +233,7 @@ int exfat_store_info(struct exfat_bootsec *b)
 	}
 
 	strncpy((char *)f->name, "/", strlen("/") + 1);
-	f->namelen = 1;
+	f->namelen = strlen("/");
 	f->datalen = info.cluster_count * info.cluster_size;
 	f->attr = ATTR_DIRECTORY;
 	f->clu = b->FirstClusterOfRootDirectory;
@@ -295,7 +295,7 @@ int exfat_load_bootsec(struct exfat_bootsec *b)
  * @b:                   boot sector pointer in exFAT (Output)
  *
  * @return               0 (success)
- *                       Negative (failed to read)
+ *                       Negative (failed)
  */
 int exfat_check_bootsec(struct exfat_bootsec *b)
 {
