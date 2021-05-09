@@ -62,6 +62,26 @@ The number of FATs              :          1
 The percentage of clusters      :          0 (%)
 ```
 
+### lsexfat
+
+lsexfat list directory contests without mount filesystem.  
+An argument that is a directory will display all the listable files in the respective directory.
+
+Writes down (in single-column format) the FileAttribute Field, DataLength Field, Timestamp Field, and name of the file. 
+By default, the timestamp displayed is the last modification time.
+
+```
+$ ./lsexfat exfat.img /
+---D-     4096 2021-05-05 01:48:47 0_SIMPLE
+---D-     4096 2021-05-05 01:54:36 1_FILENAME
+---D-     4096 2021-05-05 01:55:19 2_DELETED
+---D-     4096 2021-05-05 01:53:19 3_NOFATCHAIN
+---D-     4096 2021-05-05 01:53:05 4_FATCHAIN
+
+$ ./lsexfat exfat.img /0_SIMPLE/FILE.TXT
+----A        2 2021-05-05 01:48:42 FILE.TXT
+```
+
 ## Requirements
 
 - [autoconf](http://www.gnu.org/software/autoconf/)
