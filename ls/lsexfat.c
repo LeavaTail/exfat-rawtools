@@ -22,6 +22,7 @@
 FILE *output;
 unsigned int print_level = PRINT_WARNING;
 struct exfat_info info;
+uint8_t flags = 0;
 
 /**
  * Special Option(no short option)
@@ -49,6 +50,8 @@ static void usage(void)
 	fprintf(stderr, "display file status in exFAT\n");
 	fprintf(stderr, "\n");
 
+	fprintf(stderr, "  --c\t\tshow CreateTimestamp.\n");
+	fprintf(stderr, "  --u\t\tshow LastAccessdTimestamp.\n");
 	fprintf(stderr, "  --help\tdisplay this help and exit.\n");
 	fprintf(stderr, "  --version\toutput version information and exit.\n");
 	fprintf(stderr, "\n");
@@ -77,7 +80,14 @@ static int exfat_print_dentry(struct exfat_fileinfo *f)
 {
 	char ro, hidden, sys, dir, arch;
 	char buf[80] = {};
-	struct tm time = f->mtime;
+	struct tm time;
+
+	if (flags & OPTION_ATIME)
+		time = f->atime;
+	else if (flags & OPTION_CTIME)
+		time = f->ctime;
+	else
+		time = f->mtime;
 
 	ro = f->attr & ATTR_READ_ONLY ? 'R' : '-';
 	hidden = f->attr & ATTR_HIDDEN ? 'H' : '-';
@@ -167,9 +177,15 @@ int main(int argc, char *argv[])
 	char *path = NULL;
 
 	while ((opt = getopt_long(argc, argv,
-					"",
+					"cu",
 					longopts, &longindex)) != -1) {
 		switch (opt) {
+			case 'c':
+				flags |= OPTION_ATIME;
+				break;
+			case 'u':
+				flags |= OPTION_CTIME;
+				break;
 			case GETOPT_HELP_CHAR:
 				usage();
 				exit(EXIT_SUCCESS);
