@@ -5,6 +5,7 @@
 - [Filesystem Status](#Filesystem_Status)
 - [Directory Structure](#Directory_Structure)
 - [Cluster Contents](#Cluster_Contents)
+- [Test Items](#Test_Items)
 
 ## Filesystem_Status
 
@@ -117,3 +118,7 @@ The percentage of clusters      :          0 (%)
 | 19      | FILE6.TXT [2]     |            | 8192              | FAT is not 0xFFFFFFFF               |
 | 20      | FILE7.TXT [2]     |            | 4                 | Not used in actual                  |
 
+## Test_Items
+
+- Check if these can be built.
+- Check checkexfat

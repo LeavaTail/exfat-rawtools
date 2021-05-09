@@ -6,7 +6,9 @@ lsexfat_SOURCES = ls/lsexfat.c common/print.c common/utf8.c common/exfat.c
 man_MANS = checkexfat.8 statfsexfat.8 lsexfat.8
 
 TESTS = tests/00_init.sh \
-        tests/01_simple_option_check.sh
+        tests/01_test_checkexfat.sh \
+        tests/02_test_statfsexfat.sh \
+        tests/03_test_lsexfat.sh
 
 EXTRA_DIST = common
 AM_CPPFLAGS = -I$(top_srcdir)/common
