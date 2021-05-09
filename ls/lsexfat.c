@@ -90,7 +90,7 @@ static int exfat_print_dentry(struct exfat_fileinfo *f)
 		time.tm_hour, time.tm_min, time.tm_sec);
 
 	pr_msg("%c%c%c%c%c ", ro, hidden, sys, dir, arch);
-	pr_msg("%8llu %s ", f->datalen, buf);
+	pr_msg("%8lu %s ", f->datalen, buf);
 	pr_msg("%s\n", f->name);
 
 	return 0;

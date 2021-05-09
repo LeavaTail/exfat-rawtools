@@ -10,6 +10,7 @@
 #include <time.h>
 #include <errno.h>
 #include <ctype.h>
+#include <asm/byteorder.h>
 #include <sys/stat.h>
 #include "exfat.h"
 
@@ -216,15 +217,15 @@ int exfat_store_info(struct exfat_bootsec *b)
 	}
 
 	info.total_size = s.st_size;
-	info.partition_offset = b->PartitionOffset;
-	info.vol_size = b->VolumeLength;
-	info.sector_size  = 1 << b->BytesPerSectorShift;
+	info.partition_offset = cpu_to_le64(b->PartitionOffset);
+	info.vol_size = cpu_to_le64(b->VolumeLength);
+	info.sector_size = 1 << b->BytesPerSectorShift;
 	info.cluster_size = (1 << b->SectorsPerClusterShift) * info.sector_size;
-	info.cluster_count = b->ClusterCount;
-	info.fat_offset = b->FatOffset;
-	info.fat_length = b->NumberOfFats * b->FatLength * info.sector_size;
-	info.heap_offset = b->ClusterHeapOffset;
-	info.root_offset = b->FirstClusterOfRootDirectory;
+	info.cluster_count = cpu_to_le16(b->ClusterCount);
+	info.fat_offset = cpu_to_le32(b->FatOffset);
+	info.fat_length = b->NumberOfFats * cpu_to_le32(b->FatLength) * info.sector_size;
+	info.heap_offset = cpu_to_le32(b->ClusterHeapOffset);
+	info.root_offset = cpu_to_le32(b->FirstClusterOfRootDirectory);
 	info.root[0] = init_node2(info.root_offset, f);
 	if (!info.root[0]) {
 		free(f->name);
@@ -236,7 +237,7 @@ int exfat_store_info(struct exfat_bootsec *b)
 	f->namelen = strlen("/");
 	f->datalen = info.cluster_count * info.cluster_size;
 	f->attr = ATTR_DIRECTORY;
-	f->clu = b->FirstClusterOfRootDirectory;
+	f->clu = cpu_to_le32(b->FirstClusterOfRootDirectory);
 
 	return ret;
 }
@@ -300,10 +301,17 @@ int exfat_load_bootsec(struct exfat_bootsec *b)
 int exfat_check_bootsec(struct exfat_bootsec *b)
 {
 	int ret = 0;
-	uint8_t zero[255] = {0};
+	uint8_t zero[sizeof(struct exfat_bootsec)] = {0};
+	uint8_t bps = b->BytesPerSectorShift;
+	uint8_t spc = b->SectorsPerClusterShift;
+	uint32_t fatoff = cpu_to_le32(b->FatOffset);
+	uint32_t fatlen = cpu_to_le32(b->FatLength);
+	uint64_t vollen = cpu_to_le64(b->VolumeLength);
+	uint32_t cluoff = cpu_to_le32(b->ClusterHeapOffset);
+	uint32_t clucnt = cpu_to_le32(b->ClusterCount);
+	uint32_t rootclu = cpu_to_le32(b->FirstClusterOfRootDirectory);
 
-	if ((b->JumpBoot[0] != 0xEB) || (b->JumpBoot[1] != 0x76) || (b->JumpBoot[2] != 0x90))
-	{
+	if ((b->JumpBoot[0] != 0xEB) || (b->JumpBoot[1] != 0x76) || (b->JumpBoot[2] != 0x90)) {
 		pr_err("invalid JumpBoot: 0x%x%x%x\n", b->JumpBoot[0], b->JumpBoot[1], b->JumpBoot[2]);
 		ret = -EINVAL;
 	}
@@ -318,51 +326,50 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
-	if ((b->VolumeLength < (power2(20) / power2(b->BytesPerSectorShift)))){
-		pr_err("invalid VolumeLength: %lu\n", b->VolumeLength);
+	if (vollen < (power2(20) / power2(bps))) {
+		pr_err("invalid VolumeLength: %lu\n", vollen);
 		ret = -EINVAL;
 	}
 
-	if ((b->FatOffset < 24) || ((b->ClusterHeapOffset - (b->FatLength * b->NumberOfFats)) < b->FatOffset)) {
+	if ((fatoff < 24) || ((cluoff - fatlen * b->NumberOfFats) < fatoff)) {
 		pr_err("invalid FatOffset: 0x%x\n", b->FatOffset);
 		ret = -EINVAL;
 	}
 
-	if ((b->FatLength < (b->ClusterCount + 2) * 2 / power2(b->BytesPerSectorShift - 1))
-		|| (((b->ClusterHeapOffset - b->FatOffset) / b->NumberOfFats) < b->FatOffset)) {
-		pr_err("invalid FatLength : 0x%x\n", b->FatLength);
+	if ((fatlen < (clucnt + EXFAT_FIRST_CLUSTER) * 2 / power2(bps - 1))
+		|| (((cluoff - fatoff) / b->NumberOfFats) < fatoff)) {
+		pr_err("invalid FatLength : 0x%x\n", fatlen);
 		ret = -EINVAL;
 	}
 
-	if ((b->ClusterHeapOffset < (b->FatOffset + b->FatLength * b->NumberOfFats))
-		|| ((b->ClusterCount * power2(b->SectorsPerClusterShift)) < b->ClusterHeapOffset)) {
-		pr_err("invalid ClusterHeapOffset : 0x%x\n", b->ClusterHeapOffset);
+	if ((cluoff < (fatoff + fatlen * b->NumberOfFats)) || ((clucnt * power2(bps)) < cluoff)) {
+		pr_err("invalid ClusterHeapOffset : 0x%x\n", cluoff);
 		ret = -EINVAL;
 	}
 
-	if (((b->VolumeLength - b->ClusterHeapOffset) / power2(b->SectorsPerClusterShift) != b->ClusterCount)
-		&& (power2(32) - 11 != b->ClusterCount)) {
-		pr_err("invalid ClusterCount: 0x%x\n", b->ClusterCount);
+	if (((vollen - cluoff) / power2(b->SectorsPerClusterShift) != clucnt)
+		&& (power2(32) - 11 != clucnt)) {
+		pr_err("invalid ClusterCount: 0x%x\n", clucnt);
 		ret = -EINVAL;
 	}
 
-	if (b->FileSystemRevision < 0x0100) {
-		pr_err("invalid FileSystemRevision: 0x%04x\n", b->FileSystemRevision);
+	if (cpu_to_le16(b->FileSystemRevision) < 0x0100) {
+		pr_err("invalid FileSystemRevision: 0x%04x\n", cpu_to_le16(b->FileSystemRevision));
 		ret = -EINVAL;
 	}
 
-	if ((b->FirstClusterOfRootDirectory < 2) || (b->ClusterCount + 1 < b->FirstClusterOfRootDirectory)) {
-		pr_err("invalid FirstClusterOfRootDirectory: 0x%x\n", b->FirstClusterOfRootDirectory);
+	if ((rootclu < 2) || (clucnt + 1 < rootclu)) {
+		pr_err("invalid FirstClusterOfRootDirectory: 0x%x\n", rootclu);
 		ret = -EINVAL;
 	}
 
-	if ((b->BytesPerSectorShift < 9) || (12 < b->BytesPerSectorShift)) {
-		pr_err("invalid BytesPerSectorShift: 0x%x\n", b->BytesPerSectorShift);
+	if ((bps< 9) || (12 < bps)) {
+		pr_err("invalid BytesPerSectorShift: 0x%x\n", bps);
 		ret = -EINVAL;
 	}
 
-	if (25 - b->BytesPerSectorShift < b->SectorsPerClusterShift) {
-		pr_err("invalid SectorsPerClusterShift: 0x%x\n", b->SectorsPerClusterShift);
+	if (25 - bps < spc) {
+		pr_err("invalid SectorsPerClusterShift: 0x%x\n", spc);
 		ret = -EINVAL;
 	}
 
@@ -449,7 +456,7 @@ int exfat_check_bootchecksum(void)
 	}
 
 	for (i = 0; i < info.sector_size / sizeof(uint32_t); i++) {
-		if (bootchecksum[i] != checksum) {
+		if (cpu_to_le32(bootchecksum[i]) != checksum) {
 			pr_err("Boot region checksum(%08x) is unmatched.\n", checksum);
 			free(bootchecksum);
 			free(b);
@@ -492,9 +499,9 @@ uint32_t exfat_get_fat(uint32_t clu)
 	else if (clu < EXFAT_FIRST_CLUSTER || clu > info.cluster_count + 1)
 		pr_err("Internal Error: Cluster %u is invalid.\n", clu);
 	else
-		ret = fat[offset];
+		ret = cpu_to_le32(fat[offset]);
 
-	pr_debug("Get FAT[%u]  0x%x -> 0x%x.\n", clu, ret, fat[offset]);
+	pr_debug("Get FAT[%u]  0x%x -> 0x%x.\n", clu, ret, cpu_to_le32(fat[offset]));
 
 	free(fat);
 	return ret;
@@ -524,7 +531,7 @@ uint32_t exfat_set_fat(uint32_t clu, uint32_t entry)
 	get_sector(fat, fat_index, 1);
 
 	ret = fat[offset];
-	fat[offset] = entry;
+	fat[offset] = cpu_to_le32(entry);
 
 	set_sector(fat, fat_index, 1);
 	pr_debug("Set FAT[%u]  0x%x -> 0x%x.\n", clu, ret, fat[offset]);
@@ -741,7 +748,7 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 		if (!(tmp_clu = exfat_get_fat(tmp_clu)))
 			return 0;
 		if (tmp_clu == EXFAT_LASTCLUSTER) {
-			pr_err("File size(%llu) and FAT chain size(%lu) are un-matched.\n",
+			pr_err("File size(%lu) and FAT chain size(%lu) are un-matched.\n",
 				f->datalen, allocated * info.cluster_size);
 			break;
 		}
@@ -983,7 +990,7 @@ int exfat_clean_cache(uint32_t index)
 void exfat_create_cache(node2_t *head, uint32_t clu,
 		struct exfat_dentry *file, struct exfat_dentry *stream, uint16_t *uniname)
 {
-	int index, next_index = stream->dentry.stream.FirstCluster;
+	int index, next_index = le32_to_cpu(stream->dentry.stream.FirstCluster);
 	struct exfat_fileinfo *f;
 	size_t namelen = stream->dentry.stream.NameLength;
 
@@ -994,19 +1001,19 @@ void exfat_create_cache(node2_t *head, uint32_t clu,
 
 	exfat_convert_uniname(uniname, namelen, f->name);
 	f->namelen = namelen;
-	f->datalen = stream->dentry.stream.DataLength;
-	f->attr = file->dentry.file.FileAttributes;
+	f->datalen = le64_to_cpu(stream->dentry.stream.DataLength);
+	f->attr = le16_to_cpu(file->dentry.file.FileAttributes);
 	f->flags = stream->dentry.stream.GeneralSecondaryFlags;
-	f->hash = stream->dentry.stream.NameHash;
-	f->clu = stream->dentry.stream.FirstCluster;
+	f->hash = le16_to_cpu(stream->dentry.stream.NameHash);
+	f->clu = le32_to_cpu(stream->dentry.stream.FirstCluster);
 
-	exfat_convert_unixtime(&f->ctime, file->dentry.file.CreateTimestamp,
+	exfat_convert_unixtime(&f->ctime, le32_to_cpu(file->dentry.file.CreateTimestamp),
 			file->dentry.file.Create10msIncrement,
 			file->dentry.file.CreateUtcOffset);
-	exfat_convert_unixtime(&f->mtime, file->dentry.file.LastModifiedTimestamp,
+	exfat_convert_unixtime(&f->mtime, le32_to_cpu(file->dentry.file.LastModifiedTimestamp),
 			file->dentry.file.LastModified10msIncrement,
 			file->dentry.file.LastModifiedUtcOffset);
-	exfat_convert_unixtime(&f->atime, file->dentry.file.LastAccessedTimestamp,
+	exfat_convert_unixtime(&f->atime, le32_to_cpu(file->dentry.file.LastAccessedTimestamp),
 			0,
 			file->dentry.file.LastAccessdUtcOffset);
 	append_node2(head, next_index, f);
@@ -1018,10 +1025,10 @@ void exfat_create_cache(node2_t *head, uint32_t clu,
 		d->name = malloc(f->namelen + 1);
 		strncpy((char *)d->name, (char *)f->name, f->namelen + 1);
 		d->namelen = namelen;
-		d->datalen = stream->dentry.stream.DataLength;
-		d->attr = file->dentry.file.FileAttributes;
+		d->datalen = le64_to_cpu(stream->dentry.stream.DataLength);
+		d->attr = le16_to_cpu(file->dentry.file.FileAttributes);
 		d->flags = stream->dentry.stream.GeneralSecondaryFlags;
-		d->hash = stream->dentry.stream.NameHash;
+		d->hash = le16_to_cpu(stream->dentry.stream.NameHash);
 
 		index = exfat_get_cache(next_index);
 		info.root[index] = init_node2(next_index, d);
@@ -1053,7 +1060,7 @@ void exfat_print_upcase(void)
 	for (offset = 0; offset < length / uni_count; offset++) {
 		pr_msg("%04lxh:  ", offset * 0x10 / sizeof(uint16_t));
 		for (byte = 0; byte < uni_count; byte++) {
-			pr_msg("%04x ", info.upcase_table[offset * uni_count + byte]);
+			pr_msg("%04x ", cpu_to_le16(info.upcase_table[offset * uni_count + byte]));
 		}
 		pr_msg("\n");
 	}
@@ -1069,7 +1076,7 @@ void exfat_print_label(void)
 	pr_msg("volume Label: ");
 	name = malloc(info.vol_length * sizeof(uint16_t) + 1);
 	memset(name, '\0', info.vol_length * sizeof(uint16_t) + 1);
-	utf16s_to_utf8s(info.vol_label, info.vol_length, name);
+	utf16s_to_utf8s(cpu_to_le16(info.vol_label), info.vol_length, name);
 	pr_msg("%s\n", name);
 	free(name);
 }
@@ -1081,6 +1088,7 @@ void exfat_print_fat(void)
 {
 	uint32_t i, j;
 	uint32_t *fat;
+	uint32_t contents;
 	size_t sector_num = (info.fat_length + (info.sector_size - 1)) / info.sector_size;
 	size_t list_size = 0;
 	node2_t **fat_chain, *tmp;
@@ -1091,18 +1099,20 @@ void exfat_print_fat(void)
 
 	/* Read fat and create list */
 	for (i = 0; i < info.cluster_count - 2; i++) {
-		if (EXFAT_FIRST_CLUSTER <= fat[i] && fat[i] < EXFAT_BADCLUSTER)
+		contents = le32_to_cpu(fat[i]);
+		if (EXFAT_FIRST_CLUSTER <= contents && contents < EXFAT_BADCLUSTER)
 			list_size++;
 	}
 
 	fat_chain = calloc(list_size, sizeof(node2_t *));
 	for (i = 0; i < info.cluster_count - 2; i++) {
-		if (EXFAT_FIRST_CLUSTER <= fat[i] && fat[i] < EXFAT_BADCLUSTER) {
+		contents = le32_to_cpu(fat[i]);
+		if (EXFAT_FIRST_CLUSTER <= contents && contents < EXFAT_BADCLUSTER) {
 			for (j = 0; j < list_size; j++) {
-				if (fat_chain[j] && fat_chain[j]->index == fat[i]) {
+				if (fat_chain[j] && fat_chain[j]->index == contents) {
 					insert_node2(fat_chain[j], i, NULL);
 					break;
-				} else if (fat_chain[j] && fat[last_node2(fat_chain[j])->index] == i) {
+				} else if (fat_chain[j] && le32_to_cpu(fat[last_node2(fat_chain[j])->index]) == i) {
 					append_node2(fat_chain[j], i, NULL);
 					break;
 				} else if (!fat_chain[j]) {
@@ -1247,14 +1257,18 @@ int exfat_save_bitmap(uint32_t clu, uint32_t value)
  */
 int exfat_load_bitmap_cluster(struct exfat_dentry d)
 {
+	uint32_t fstclu;
+	uint64_t datalen;
+
 	if (info.alloc_offset)
 		return -1;
 
-	pr_debug("Get: allocation table: cluster 0x%x, size: 0x%llx\n",
-			d.dentry.bitmap.FirstCluster,
-			d.dentry.bitmap.DataLength);
-	info.alloc_offset = d.dentry.bitmap.FirstCluster;
-	info.alloc_length = d.dentry.bitmap.DataLength;
+	fstclu = le32_to_cpu(d.dentry.bitmap.FirstCluster);
+	datalen = le64_to_cpu(d.dentry.bitmap.DataLength);
+
+	pr_debug("Get: allocation table: cluster 0x%x, size: 0x%lx\n", fstclu, datalen);
+	info.alloc_offset = fstclu;
+	info.alloc_length = datalen;
 	info.alloc_table = calloc(info.cluster_size, 1);
 	
 	get_cluster(info.alloc_table, info.alloc_offset);
@@ -1273,16 +1287,19 @@ int exfat_load_bitmap_cluster(struct exfat_dentry d)
  */
 int exfat_load_upcase_cluster(struct exfat_dentry d)
 {
+	uint32_t fstclu;
+	uint32_t datalen;
 	uint32_t checksum = 0;
 
 	if (info.upcase_size)
 		return -1;
 
-	pr_debug("Get: Up-case table: cluster 0x%x, size: 0x%x\n",
-			d.dentry.upcase.FirstCluster,
-			d.dentry.upcase.DataLength);
-	info.upcase_offset = d.dentry.upcase.FirstCluster;
-	info.upcase_size = d.dentry.upcase.DataLength;
+	fstclu = le32_to_cpu(d.dentry.upcase.FirstCluster);
+	datalen = le64_to_cpu(d.dentry.upcase.DataLength);
+
+	pr_debug("Get: Up-case table: cluster 0x%x, size: 0x%x\n", fstclu, datalen);
+	info.upcase_offset = fstclu;
+	info.upcase_size = datalen;
 	info.upcase_table = calloc(info.cluster_size, 1);
 
 	get_cluster(info.upcase_table, info.upcase_offset);
@@ -1486,7 +1503,8 @@ uint32_t exfat_calculate_bootchecksum(unsigned char *sectors, unsigned short bps
 		{
 			continue;
 		}
-		checksum = ((checksum & 1) ? 0x80000000 : 0) + (checksum >> 1) + (uint32_t)sectors[index];
+		checksum = 
+			((checksum & 1) ? 0x80000000 : 0) + (checksum >> 1) + cpu_to_le32((uint32_t)sectors[index]);
 	}
 
 	return checksum;
@@ -1508,7 +1526,7 @@ uint16_t exfat_calculate_checksum(unsigned char *entry, unsigned char count)
 	for (index = 0; index < bytes; index++) {
 		if ((index == 2) || (index == 3))
 			continue;
-		checksum = ((checksum & 1) ? 0x8000 : 0) + (checksum >> 1) +  (uint16_t)entry[index];
+		checksum = ((checksum & 1) ? 0x8000 : 0) + (checksum >> 1) +  le16_to_cpu((uint16_t)entry[index]);
 	}
 	return checksum;
 }
@@ -1526,7 +1544,8 @@ uint32_t exfat_calculate_tablechecksum(unsigned char *table, uint64_t length)
 	uint64_t index;
 
 	for (index = 0; index < length; index++)
-		checksum = ((checksum & 1) ? 0x80000000 : 0) + (checksum >> 1) + (uint32_t)table[index];
+		checksum =
+			((checksum & 1) ? 0x80000000 : 0) + (checksum >> 1) + le32_to_cpu((uint32_t)table[index]);
 
 	return checksum;
 }
@@ -1546,7 +1565,7 @@ uint16_t exfat_calculate_namehash(uint16_t *name, uint8_t len)
 	uint16_t index;
 
 	for (index = 0; index < bytes; index++)
-		hash = ((hash & 1) ? 0x8000 : 0) + (hash >> 1) + (uint16_t)buffer[index];
+		hash = ((hash & 1) ? 0x8000 : 0) + (hash >> 1) + (le16_to_cpu(uint16_t)buffer[index]);
 
 	return hash;
 }
@@ -1567,6 +1586,7 @@ int exfat_update_filesize(struct exfat_fileinfo *f, uint32_t clu)
 	struct exfat_fileinfo *dir;
 	struct exfat_dentry d;
 	void *data;
+	uint32_t fstclu;
 
 	if (clu == info.root_offset)
 		return 0;
@@ -1591,8 +1611,9 @@ int exfat_update_filesize(struct exfat_fileinfo *f, uint32_t clu)
 		get_cluster(data, parent_clu);
 		for (j = 0; j < (info.cluster_size / sizeof(struct exfat_dentry)); j++) {
 			d = ((struct exfat_dentry *)data)[j];
-			if (d.EntryType == DENTRY_STREAM && d.dentry.stream.FirstCluster == clu) {
-				d.dentry.stream.DataLength = f->datalen;
+			fstclu = le32_to_cpu(d.dentry.stream.FirstCluster);
+			if (d.EntryType == DENTRY_STREAM && fstclu == clu) {
+				d.dentry.stream.DataLength = cpu_to_le64(f->datalen);
 				d.dentry.stream.GeneralSecondaryFlags = f->flags;
 				goto out;
 			}
