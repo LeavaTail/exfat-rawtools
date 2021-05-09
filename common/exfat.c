@@ -376,8 +376,8 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
-	if ((b->BootSignature[0] != 0x55) || (b->BootSignature[1] != 0xAA)) {
-		pr_err("invalid BootSignature: 0x%x%x\n", b->BootSignature[0], b->BootSignature[1]);
+	if ((b->BootSignature != EXFAT_SIGNATURE)) {
+		pr_err("invalid BootSignature: 0x%x\n", b->BootSignature);
 		ret = -EINVAL;
 	}
 
@@ -405,8 +405,8 @@ int exfat_check_extend_bootsec(void)
 			free(b);
 			return -EIO;
 		}
-		if (b[index] != 0xAA550000) {
-			pr_err("invalid ExtendedBootSignature: 0x%08x\n", b[index]);
+		if (cpu_to_le32(b[index]) != EXFAT_EXSIGNATURE) {
+			pr_err("invalid ExtendedBootSignature: 0x%08x\n", cpu_to_le32(b[index]));
 			ret = -EINVAL;
 		}
 	}

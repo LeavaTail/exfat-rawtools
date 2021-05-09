@@ -36,10 +36,13 @@
 #define EXFAT_FIRST_CLUSTER  2
 #define EXFAT_BADCLUSTER     0xFFFFFFF7
 #define EXFAT_LASTCLUSTER    0xFFFFFFFF
+#define EXFAT_SIGNATURE      0xAA55
+#define EXFAT_EXSIGNATURE    0xAA550000
+
 
 struct exfat_info {
 	int fd;
-	size_t total_size;
+	off_t total_size;
 	uint64_t partition_offset;
 	uint32_t vol_size;
 	uint16_t sector_size;
@@ -50,7 +53,7 @@ struct exfat_info {
 	uint32_t heap_offset;
 	uint32_t root_offset;
 	uint32_t alloc_offset;
-	size_t alloc_length;
+	uint64_t alloc_length;
 	uint8_t *alloc_table;
 	uint32_t upcase_offset;
 	uint32_t upcase_size;
@@ -58,13 +61,13 @@ struct exfat_info {
 	uint8_t vol_length;
 	uint16_t *vol_label;
 	node2_t **root;
-	size_t root_size;
+	uint32_t root_size;
 };
 
 struct exfat_fileinfo {
 	unsigned char *name;
-	size_t namelen;
-	size_t datalen;
+	uint64_t namelen;
+	uint64_t datalen;
 	uint8_t cached;
 	uint16_t attr;
 	uint8_t flags;
@@ -96,7 +99,7 @@ struct exfat_bootsec {
 	uint8_t PercentInUse;
 	unsigned char Reserved[7];
 	unsigned char BootCode[390];
-	unsigned char BootSignature[2];
+	uint16_t BootSignature;
 };
 
 struct exfat_dentry {
