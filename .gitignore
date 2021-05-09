@@ -54,7 +54,7 @@ Makefile
 # result file
 *.8
 checkexfat
-statexfat
+statfsexfat
 lsexfat
 
 # Temporary files
