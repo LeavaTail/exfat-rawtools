@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <time.h>
+#include <linux/types.h>
 
 #include "print.h"
 #include "list.h"
@@ -79,107 +80,107 @@ struct exfat_fileinfo {
 };
 
 struct exfat_bootsec {
-	unsigned char JumpBoot[3];
-	unsigned char FileSystemName[8];
-	unsigned char MustBeZero[53];
-	uint64_t  PartitionOffset;
-	uint64_t VolumeLength;
-	uint32_t FatOffset;
-	uint32_t FatLength;
-	uint32_t ClusterHeapOffset;
-	uint16_t ClusterCount;
-	uint32_t FirstClusterOfRootDirectory;
-	uint32_t VolumeSerialNumber;
-	uint16_t FileSystemRevision;
-	uint16_t VolumeFlags;
-	uint8_t BytesPerSectorShift;
-	uint8_t SectorsPerClusterShift;
-	uint8_t NumberOfFats;
-	uint8_t DriveSelect;
-	uint8_t PercentInUse;
-	unsigned char Reserved[7];
-	unsigned char BootCode[390];
-	uint16_t BootSignature;
+	__u8 JumpBoot[3];
+	__u8 FileSystemName[8];
+	__u8 MustBeZero[53];
+	__le64 PartitionOffset;
+	__le64 VolumeLength;
+	__le32 FatOffset;
+	__le32 FatLength;
+	__le32 ClusterHeapOffset;
+	__le16 ClusterCount;
+	__le32 FirstClusterOfRootDirectory;
+	__le32 VolumeSerialNumber;
+	__le16 FileSystemRevision;
+	__le16 VolumeFlags;
+	__u8 BytesPerSectorShift;
+	__u8 SectorsPerClusterShift;
+	__u8 NumberOfFats;
+	__u8 DriveSelect;
+	__u8 PercentInUse;
+	__u8 Reserved[7];
+	__u8 BootCode[390];
+	__le16 BootSignature;
 };
 
 struct exfat_dentry {
-	uint8_t EntryType;
+	__u8 EntryType;
 	union {
 		/* Allocation Bitmap Directory Entry */
 		struct {
-			uint8_t BitmapFlags;
-			unsigned char Reserved[18];
-			uint32_t FirstCluster;
-			uint64_t DataLength;
+			__u8 BitmapFlags;
+			__u8 Reserved[18];
+			__le32 FirstCluster;
+			__le64 DataLength;
 		} __attribute__((packed)) bitmap;
 		/* Up-case Table Directory Entry */
 		struct {
-			unsigned char Reserved1[3];
-			uint32_t TableCheckSum;
-			unsigned char Reserved2[12];
-			uint32_t FirstCluster;
-			uint32_t DataLength;
+			__u8 Reserved1[3];
+			__le32 TableCheckSum;
+			__u8 Reserved2[12];
+			__le32 FirstCluster;
+			__le32 DataLength;
 		} __attribute__((packed)) upcase;
 		/* Volume Label Directory Entry */
 		struct {
-			uint8_t CharacterCount;
-			uint16_t VolumeLabel[11];
-			unsigned char Reserved[8];
+			__u8 CharacterCount;
+			__le16 VolumeLabel[11];
+			__u8 Reserved[8];
 		} __attribute__((packed)) vol;
 		/* File Directory Entry */
 		struct {
-			uint8_t SecondaryCount;
-			uint16_t SetChecksum;
-			uint16_t FileAttributes;
-			unsigned char Reserved1[2];
-			uint32_t CreateTimestamp;
-			uint32_t LastModifiedTimestamp;
-			uint32_t LastAccessedTimestamp;
-			uint8_t Create10msIncrement;
-			uint8_t LastModified10msIncrement;
-			uint8_t CreateUtcOffset;
-			uint8_t LastModifiedUtcOffset;
-			uint8_t LastAccessdUtcOffset;
-			unsigned char Reserved2[7];
+			__u8 SecondaryCount;
+			__le16 SetChecksum;
+			__le16 FileAttributes;
+			__u8 Reserved1[2];
+			__le32 CreateTimestamp;
+			__le32 LastModifiedTimestamp;
+			__le32 LastAccessedTimestamp;
+			__u8 Create10msIncrement;
+			__u8 LastModified10msIncrement;
+			__u8 CreateUtcOffset;
+			__u8 LastModifiedUtcOffset;
+			__u8 LastAccessdUtcOffset;
+			__u8 Reserved2[7];
 		} __attribute__((packed)) file;
 		/* Volume GUID Directory Entry */
 		struct {
-			uint8_t SecondaryCount;
-			uint16_t SetChecksum;
-			uint16_t GeneralPrimaryFlags;
-			unsigned char VolumeGuid[16];
-			unsigned char Reserved[10];
+			__u8 SecondaryCount;
+			__le16 SetChecksum;
+			__le16 GeneralPrimaryFlags;
+			__u8 VolumeGuid[16];
+			__u8 Reserved[10];
 		} __attribute__((packed)) guid;
 		/* Stream Extension Directory Entry */
 		struct {
-			uint8_t GeneralSecondaryFlags;
-			unsigned char Reserved1;
-			uint8_t NameLength;
-			uint16_t NameHash;
-			unsigned char Reserved2[2];
-			uint64_t ValidDataLength;
-			unsigned char Reserved3[4];
-			uint32_t FirstCluster;
-			uint64_t DataLength;
+			__u8 GeneralSecondaryFlags;
+			__u8 Reserved1;
+			__u8 NameLength;
+			__le16 NameHash;
+			__u8 Reserved2[2];
+			__le64 ValidDataLength;
+			__u8 Reserved3[4];
+			__le32 FirstCluster;
+			__le64 DataLength;
 		} __attribute__((packed)) stream;
 		/* File Name Directory Entry */
 		struct {
-			uint8_t GeneralSecondaryFlags;
+			__u8 GeneralSecondaryFlags;
 			uint16_t FileName[15];
 		} __attribute__((packed)) name;
 		/* Vendor Extension Directory Entry */
 		struct {
-			uint8_t GeneralSecondaryFlags;
-			unsigned char VendorGuid[16];
-			unsigned char VendorDefined[14];
+			__u8 GeneralSecondaryFlags;
+			__u8 VendorGuid[16];
+			__u8 VendorDefined[14];
 		} __attribute__((packed)) vendor;
 		/* Vendor Allocation Directory Entry */
 		struct {
-			uint8_t GeneralSecondaryFlags;
-			unsigned char VendorGuid[16];
-			unsigned char VendorDefined[2];
-			uint32_t FirstCluster;
-			uint64_t DataLength;
+			__u8 GeneralSecondaryFlags;
+			__u8 VendorGuid[16];
+			__u8 VendorDefined[2];
+			__le32 FirstCluster;
+			__le64 DataLength;
 		} __attribute__((packed)) vendor_alloc;
 	} __attribute__((packed)) dentry;
 } __attribute__ ((packed));

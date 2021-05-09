@@ -72,7 +72,7 @@ static void version(const char *command_name, const char *version, const char *a
  */
 void exfat_print_bootsec(struct exfat_bootsec *b)
 {
-	pr_msg("%-28s\t: 0x%08lx (sector)\n", "media-relative sector offset",
+	pr_msg("%-28s\t: 0x%08llx (sector)\n", "media-relative sector offset",
 			b->PartitionOffset);
 	pr_msg("%-28s\t: 0x%08x (sector)\n", "Offset of the First FAT",
 			b->FatOffset);
@@ -84,7 +84,7 @@ void exfat_print_bootsec(struct exfat_bootsec *b)
 			b->ClusterCount);
 	pr_msg("%-28s\t: %10u (cluster)\n", "The first cluster of the root",
 			b->FirstClusterOfRootDirectory);
-	pr_msg("%-28s\t: %10lu (sector)\n", "Size of exFAT volumes",
+	pr_msg("%-28s\t: %10llu (sector)\n", "Size of exFAT volumes",
 			b->VolumeLength);
 	pr_msg("%-28s\t: %10u (byte)\n", "Bytes per sector",
 			info.sector_size);

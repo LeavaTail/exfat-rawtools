@@ -741,7 +741,7 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 		if (!(tmp_clu = exfat_get_fat(tmp_clu)))
 			return 0;
 		if (tmp_clu == EXFAT_LASTCLUSTER) {
-			pr_err("File size(%lu) and FAT chain size(%lu) are un-matched.\n",
+			pr_err("File size(%llu) and FAT chain size(%lu) are un-matched.\n",
 				f->datalen, allocated * info.cluster_size);
 			break;
 		}
@@ -1250,7 +1250,7 @@ int exfat_load_bitmap_cluster(struct exfat_dentry d)
 	if (info.alloc_offset)
 		return -1;
 
-	pr_debug("Get: allocation table: cluster 0x%x, size: 0x%lx\n",
+	pr_debug("Get: allocation table: cluster 0x%x, size: 0x%llx\n",
 			d.dentry.bitmap.FirstCluster,
 			d.dentry.bitmap.DataLength);
 	info.alloc_offset = d.dentry.bitmap.FirstCluster;
