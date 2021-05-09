@@ -43,6 +43,24 @@ Cluster#15 isn't used at all.
 4_FILESIZE      (10) | FILE5.TXT(16) FILE7.TXT(18)
 ```
 
+### statfsexfat
+
+statfsexfat display information in Main Boot Sector.
+
+```
+$ ./statfsexfat tests/sample/exfat.img
+media-relative sector offset    : 0x00000000 (sector)
+Offset of the First FAT         : 0x00000800 (sector)
+Length of FAT table             :        256 (sector)
+Offset of the Cluster Heap      : 0x00001000 (sector)
+The number of clusters          :      32256 (cluster)
+The first cluster of the root   :          5 (cluster)
+Size of exFAT volumes           :     262144 (sector)
+Bytes per sector                :        512 (byte)
+Bytes per cluster               :          0 (byte)
+The number of FATs              :          1
+The percentage of clusters      :          0 (%)
+```
 
 ## Requirements
 
