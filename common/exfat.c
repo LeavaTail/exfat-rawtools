@@ -28,8 +28,8 @@ extern struct exfat_info info;
  * @index:      Start bytes
  * @count:      The number of sectors
  *
- * @return       0 (success)
- *              -1 (failed to read)
+ * @return       == 0 (success)
+ *               <  0 (failed)
  *
  * NOTE: Need to allocate @data before call it.
  */
@@ -51,8 +51,8 @@ int get_sector(void *data, off_t index, size_t count)
  * @index:      Start bytes
  * @count:      The number of sectors
  *
- * @return       0 (success)
- *              -1 (failed to read)
+ * @return      == 0 (success)
+ *              <  0 (failed)
  *
  * NOTE: Need to allocate @data before call it.
  */
@@ -73,8 +73,8 @@ int set_sector(void *data, off_t index, size_t count)
  * @data:        cluster raw data (Output)
  * @index:       Start cluster index
  *
- * @return        0 (success)
- *               -1 (failed to read)
+ * @return       == 0 (success)
+ *               <  0 (failed)
  *
  * NOTE: Need to allocate @data before call it.
  */
@@ -88,8 +88,8 @@ int get_cluster(void *data, off_t index)
  * @data:        cluster raw data
  * @index:       Start cluster index
  *
- * @return        0 (success)
- *               -1 (failed to read)
+ * @return       == 0 (success)
+ *               <  0 (failed)
  *
  * NOTE: Need to allocate @data before call it.
  */
@@ -104,8 +104,8 @@ int set_cluster(void *data, off_t index)
  * @index:        Start cluster index
  * @num:          The number of clusters
  *
- * @return         0 (success)
- *                -1 (failed to read)
+ * @return        == 0 (success)
+ *                <  0 (failed)
  *
  * NOTE: Need to allocate @data before call it.
  */
@@ -130,8 +130,8 @@ int get_clusters(void *data, off_t index, size_t num)
  * @index:        Start cluster index
  * @num:          The number of clusters
  *
- * @return         0 (success)
- *                -1 (failed to read)
+ * @return        == 0 (success)
+ *                <  0 (failed to read)
  *
  * NOTE: Need to allocate @data before call it.
  */
@@ -159,8 +159,8 @@ int set_clusters(void *data, off_t index, size_t num)
 /**
  * init_device_info - Initialize member in struct device_info
  *
- * @return               0 (success)
- *                       Negative (failed)
+ * @return            == 0 (success)
+ *                    <  0 (failed)
  */
 int exfat_init_info(void)
 {
@@ -195,8 +195,8 @@ int exfat_init_info(void)
  * exfat_store_filesystem - store BootSector to exfat_info
  * @boot:                   boot sector pointer
  *
- * @return:                  0 (Success)
- *                          -1 (Failed)
+ * @return:                 == 0 (Success)
+ *                          <  0 (failed to read)
  */
 int exfat_store_info(struct exfat_bootsec *b)
 {
@@ -243,11 +243,9 @@ int exfat_store_info(struct exfat_bootsec *b)
 }
 
 /**
- * exfat_clean - function to clean opeartions
- * @index:       directory chain index
+ * exfat_clean_info - function to clean opeartions
  *
- * @return        0 (success)
- *               -1 (already released)
+ * @return            0 (success)
  */
 int exfat_clean_info(void)
 {
@@ -286,8 +284,8 @@ int exfat_clean_info(void)
  * exfat_load_bootsec - load boot sector
  * @b:                  boot sector pointer in exFAT (Output)
  *
- * @return               0 (success)
- *                       Negative (failed to read)
+ * @return:             == 0 (Success)
+ *                      <  0 (failed)
  */
 int exfat_load_bootsec(struct exfat_bootsec *b)
 {
@@ -301,8 +299,8 @@ int exfat_load_bootsec(struct exfat_bootsec *b)
  * exfat_check_bootsec - verify boot sector
  * @b:                   boot sector pointer in exFAT (Output)
  *
- * @return               0 (success)
- *                       Negative (failed)
+ * @return:              == 0 (Success)
+ *                       <  0 (failed)
  */
 int exfat_check_bootsec(struct exfat_bootsec *b)
 {
@@ -400,8 +398,8 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 /**
  * exfat_check_extend_bootsec - verify extended boot sector
  *
- * @return                      0 (success)
- *                              Negative (failed)
+ * @return                      == 0 (success)
+ *                              <  0 (failed)
  */
 int exfat_check_extend_bootsec(void)
 {
@@ -431,8 +429,8 @@ int exfat_check_extend_bootsec(void)
 /**
  * exfat_check_bootchecksum - verify Main Boot region checksum
  *
- * @return                    0 (success)
- *                            Negative (failed)
+ * @return                    == 0 (success)
+ *                            <  0 (failed)
  */
 int exfat_check_bootchecksum(void)
 {
@@ -563,7 +561,8 @@ out:
  * @f:                   file information pointer
  * @clu:                 first cluster
  *
- * @retrun:              0 (success)
+ * @return               == 0 (success)
+ *                       <  0 (failed)
  */
 int exfat_set_fat_chain(struct exfat_fileinfo *f, uint32_t clu)
 {
@@ -900,7 +899,7 @@ int exfat_get_last_cluster(struct exfat_fileinfo *f, uint32_t clu)
 /*************************************************************************************************/
 
 /**
- * exfat_print_cache - print directory chain
+ * exfat_print_cache - print directory cache
  */
 void exfat_print_cache(void)
 {
@@ -1106,6 +1105,8 @@ void exfat_print_upcase(void)
 
 /**
  * exfat_print_label - print volume label
+ *
+ * NOTE: If malloc for UTF-8 is failed, some error has occurred.
  */
 void exfat_print_label(void)
 {
