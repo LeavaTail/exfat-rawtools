@@ -1829,7 +1829,7 @@ uint32_t exfat_lookup(uint32_t clu, char *name)
 
 	if (!name) {
 		pr_err("Internal Error: invalid pathname.\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	/* Absolute path */
@@ -1842,7 +1842,7 @@ uint32_t exfat_lookup(uint32_t clu, char *name)
 	while (path[depth] != NULL) {
 		if (depth >= MAX_NAME_LENGTH) {
 			pr_err("Pathname is too depth. (> %d)\n", MAX_NAME_LENGTH);
-			return -EINVAL;
+			return 0;
 		}
 		path[++depth] = strtok(NULL, "/");
 	};
@@ -1859,7 +1859,7 @@ uint32_t exfat_lookup(uint32_t clu, char *name)
 			/* Directory doesn't exist */
 			if (!info.root[index]) {
 				pr_err("This Directory doesn't exist in filesystem.\n");
-				return -EINVAL;
+				return 0;
 			}
 		}
 
@@ -1876,7 +1876,7 @@ uint32_t exfat_lookup(uint32_t clu, char *name)
 
 		if (!found) {
 			pr_err("'%s': No such file or directory.\n", name);
-			return -EINVAL;
+			return 0;
 		}
 	}
 
