@@ -114,7 +114,7 @@ int get_clusters(void *data, off_t index, size_t num)
 	size_t clu_per_sec = info.cluster_size / info.sector_size;
 	off_t heap_start = info.heap_offset * info.sector_size;
 
-	if (index < 2 || index + num > info.cluster_count) {
+	if (index < EXFAT_FIRST_CLUSTER || index + num > info.cluster_count) {
 		pr_err("Internal Error: invalid cluster range %lu ~ %lu.\n", index, index + num - 1);
 		return -1;
 	}
@@ -140,7 +140,7 @@ int set_clusters(void *data, off_t index, size_t num)
 	size_t clu_per_sec = info.cluster_size / info.sector_size;
 	off_t heap_start = info.heap_offset * info.sector_size;
 
-	if (index < 2 || index + num > info.cluster_count) {
+	if (index < EXFAT_FIRST_CLUSTER || index + num > info.cluster_count) {
 		pr_err("Internal Error: invalid cluster range %lu ~ %lu.\n", index, index + num - 1);
 		return -1;
 	}
