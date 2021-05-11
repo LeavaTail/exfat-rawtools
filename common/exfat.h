@@ -310,7 +310,7 @@ void exfat_print_cache(void);
 int exfat_check_cache(uint32_t);
 int exfat_get_cache(uint32_t);
 int exfat_clean_cache(uint32_t);
-void exfat_create_cache(node2_t *, uint32_t,
+int exfat_create_cache(node2_t *, uint32_t,
 		struct exfat_dentry *, struct exfat_dentry *, uint16_t *);
 
 /* Special entry function prototype */

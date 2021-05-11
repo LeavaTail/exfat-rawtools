@@ -1005,7 +1005,7 @@ int exfat_clean_cache(uint32_t index)
  * @stream:             stream Extension dentry
  * @uniname:            File Name dentry
  */
-void exfat_create_cache(node2_t *head, uint32_t clu,
+int exfat_create_cache(node2_t *head, uint32_t clu,
 		struct exfat_dentry *file, struct exfat_dentry *stream, uint16_t *uniname)
 {
 	int index, next_index = le32_to_cpu(stream->dentry.stream.FirstCluster);
