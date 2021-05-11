@@ -970,7 +970,7 @@ int exfat_get_cache(uint32_t clu)
 
 /**
  * exfat_clean_cache - function to clean opeartions
- * @index:              directory chain index
+ * @index:             directory chain index
  *
  * @return              0 (success)
  *                     -1 (already released)
@@ -1004,6 +1004,9 @@ int exfat_clean_cache(uint32_t index)
  * @file:               file dentry
  * @stream:             stream Extension dentry
  * @uniname:            File Name dentry
+ *
+ * @return              == 0 (success)
+ *                      <  0 (failed)
  */
 int exfat_create_cache(node2_t *head, uint32_t clu,
 		struct exfat_dentry *file, struct exfat_dentry *stream, uint16_t *uniname)
@@ -1245,9 +1248,9 @@ void exfat_print_bitmap(void)
  * exfat_load_bitmap - function to load allocation table
  * @clu:               cluster index
  *
- * @return              0 (cluster as available for allocation)
- *                      1 (cluster as not available for allocation)
- *                     -1 (failed)
+ * @return             == 0 (cluster as available for allocation)
+ *                     == 1 (cluster as not available for allocation)
+ *                     <  0 (failed)
  */
 int exfat_load_bitmap(uint32_t clu)
 {
@@ -1277,8 +1280,8 @@ int exfat_load_bitmap(uint32_t clu)
  * @clu:               cluster index
  * @value:             Bit
  *
- * @return              0 (success)
- *                     -1 (failed)
+ * @return             == 0 (success)
+ *                     <  0 (failed)
  */
 int exfat_save_bitmap(uint32_t clu, uint32_t value)
 {
@@ -1324,7 +1327,8 @@ int exfat_save_bitmap(uint32_t clu, uint32_t value)
  * @d:                         directory entry about allocation bitmap
  *
  * @return                      0 (success)
- *                             -1 (bitmap was already loaded)
+ *                              1 (bitmap was already loaded)
+ *                             -1 (failed)
  */
 int exfat_load_bitmap_cluster(struct exfat_dentry d)
 {
@@ -1357,8 +1361,9 @@ int exfat_load_bitmap_cluster(struct exfat_dentry d)
  * exfat_load_upcase_cluster - function to load Upcase table
  * @d:                         directory entry about Upcase table
  *
- * @return                      0 (success)
- *                             -1 (bitmap was already loaded)
+ * @return                     == 0 (success)
+ *                             == 1 (bitmap was already loaded)
+ *                             <  0 (failed)
  */
 int exfat_load_upcase_cluster(struct exfat_dentry d)
 {
@@ -1399,7 +1404,7 @@ int exfat_load_upcase_cluster(struct exfat_dentry d)
  * @d:                       directory entry about volume label
  *
  * @return                    0 (success)
- *                           -1 (bitmap was already loaded)
+ *                            1 (bitmap was already loaded)
  */
 int exfat_load_volume_label(struct exfat_dentry d)
 {
@@ -1426,8 +1431,8 @@ int exfat_load_volume_label(struct exfat_dentry d)
 /**
  * exfat_traverse_root_directory - function to traverse root directory
  *
- * @return                          0 (success)
- *                                 -1 (failed to read)
+ * @return                         == 0 (success)
+ *                                 <  0 (failed)
  */
 int exfat_traverse_root_directory(void)
 {
@@ -1496,8 +1501,8 @@ out:
  * exfat_traverse_directory - function to traverse one directory
  * @clu:                      index of the cluster want to check
  *
- * @return                    0 (success)
- *                           -1 (failed to read)
+ * @return                    == 0 (success)
+ *                            <  0 (failed)
  */
 int exfat_traverse_directory(uint32_t clu)
 {
@@ -1675,8 +1680,8 @@ uint16_t exfat_calculate_namehash(uint16_t *name, uint8_t len)
  * @f:                     file information pointer
  * @clu:                   first cluster
  *
- * @return                  0 (success)
- *                         -1 (Failed)
+ * @return                 == 0 (success)
+ *                         <  0 (failed)
  */
 int exfat_update_filesize(struct exfat_fileinfo *f, uint32_t clu)
 {
