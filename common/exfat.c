@@ -367,7 +367,7 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
-	if ((bps< 9) || (12 < bps)) {
+	if ((bps < 9) || (12 < bps)) {
 		pr_err("invalid BytesPerSectorShift: 0x%x\n", bps);
 		ret = -EINVAL;
 	}
