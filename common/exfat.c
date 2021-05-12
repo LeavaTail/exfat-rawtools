@@ -481,20 +481,21 @@ int exfat_check_bootchecksum(void)
 /**
  * exfat_get_fat - Whether or not cluster is continuous
  * @clu:           index of the cluster want to check
+ * @entry:         any cluster index (Output)
  *
- * @retrun:        next cluster (@clu has next cluster)
- *                 0            (@clu doesn't have next cluster)
+ * @return         == 0 (success)
+ *                 <  0 (failed)
  */
-uint32_t exfat_get_fat(uint32_t clu)
+int exfat_get_fat(uint32_t clu, uint32_t *entry)
 {
-	uint32_t ret = 0;
+	int ret = -EINVAL;
 	size_t entry_per_sector = info.sector_size / sizeof(uint32_t);
 	uint32_t fat_index = (info.fat_offset +  clu / entry_per_sector) * info.sector_size;
 	uint32_t *fat;
 	uint32_t offset = (clu) % entry_per_sector;
 
 	if ((fat = malloc(info.sector_size)) == NULL)
-		return 0;
+		return -ENOMEM;;
 	if (get_sector(fat, fat_index, 1))
 		goto out;
 
@@ -505,9 +506,12 @@ uint32_t exfat_get_fat(uint32_t clu)
 	else if (clu < EXFAT_FIRST_CLUSTER || clu > info.cluster_count + 1)
 		pr_err("Internal Error: Cluster %u is invalid.\n", clu);
 	else
-		ret = cpu_to_le32(fat[offset]);
+		ret = 0;
 
-	pr_debug("Get FAT[%u]  0x%x -> 0x%x.\n", clu, ret, cpu_to_le32(fat[offset]));
+	if (!ret) {
+		*entry = cpu_to_le32(fat[offset]);
+		pr_debug("Get FAT[%u]  0x%x.\n", clu, *entry);
+	}
 
 out:
 	free(fat);
@@ -519,19 +523,19 @@ out:
  * @clu:           index of the cluster want to check
  * @entry:         any cluster index
  *
- * @retrun:        previous FAT entry
- *                 0 (Failed)
+ * @return         == 0 (success)
+ *                 <  0 (failed)
  */
-uint32_t exfat_set_fat(uint32_t clu, uint32_t entry)
+int exfat_set_fat(uint32_t clu, uint32_t entry)
 {
-	uint32_t ret = 0;
+	uint32_t ret = -EINVAL;
 	size_t entry_per_sector = info.sector_size / sizeof(uint32_t);
 	uint32_t fat_index = (info.fat_offset +  clu / entry_per_sector) * info.sector_size;
 	uint32_t *fat;
 	uint32_t offset = (clu) % entry_per_sector;
 
 	if ((fat = malloc(info.sector_size)) == NULL)
-		return 0;
+		return -ENOMEM;
 	if (get_sector(fat, fat_index, 1))
 		goto out;
 
@@ -546,10 +550,13 @@ uint32_t exfat_set_fat(uint32_t clu, uint32_t entry)
 	else if (entry < EXFAT_FIRST_CLUSTER || entry > info.cluster_count + 1)
 		pr_err("Internal Error: Entry %u is invalid.\n", entry);
 	else
+		ret = 0;
+	
+	if (!ret) {
 		fat[offset] = cpu_to_le32(entry);
-
-	set_sector(fat, fat_index, 1);
-	pr_debug("Set FAT[%u]  0x%x -> 0x%x.\n", clu, ret, fat[offset]);
+		set_sector(fat, fat_index, 1);
+		pr_debug("Set FAT[%u]  0x%x -> 0x%x.\n", clu, ret, fat[offset]);
+	}
 
 out:
 	free(fat);
@@ -569,7 +576,7 @@ int exfat_set_fat_chain(struct exfat_fileinfo *f, uint32_t clu)
 	size_t cluster_num = ROUNDUP(f->datalen, info.cluster_size);
 
 	while (--cluster_num) {
-		if (!exfat_set_fat(clu, clu + 1))
+		if (exfat_set_fat(clu, clu + 1))
 			return -EINVAL;
 		clu++;
 	}
@@ -648,11 +655,12 @@ int exfat_free_clusters(struct exfat_fileinfo *f, uint32_t clu, size_t num_alloc
 	}
 
 	/* FAT_CHAIN */
-	for (i = 0; i < cluster_num - num_alloc - 1; i++)
-		clu = exfat_get_fat(clu);
+	for (i = 0; i < cluster_num - num_alloc - 1; i++) 
+		if (exfat_get_fat(tmp, &tmp))
+			break;
 
 	while (i++ < cluster_num - 1) {
-		next_clu = exfat_get_fat(clu);
+		exfat_get_fat(clu, &next_clu);
 		exfat_set_fat(clu, EXFAT_LASTCLUSTER);
 		exfat_save_bitmap(next_clu, 0);
 		clu = next_clu;
@@ -707,6 +715,7 @@ int exfat_new_clusters(size_t num_alloc)
 uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
 {
 	void *tmp;
+	uint32_t next_clu;
 	size_t allocated;
 	size_t cluster_num = ROUNDUP(len, info.cluster_size);
 
@@ -718,8 +727,10 @@ uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
 	*data = tmp;
 
 	for (allocated = 1; allocated < cluster_num; allocated++) {
-		clu = exfat_get_fat(clu);
-		get_cluster(*data + info.cluster_size * allocated, clu);
+		if (exfat_get_fat(clu, &next_clu))
+			break;
+		get_cluster(*data + info.cluster_size * allocated, next_clu);
+		clu = next_clu;
 	}
 
 	return allocated;
@@ -738,8 +749,9 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 {
 	int i;
 	void *tmp;
-	uint32_t tmp_clu = 0;
-	size_t allocated = 1;
+	uint32_t tmp_clu = clu;
+	uint32_t next_clu;
+	size_t allocated;
 	size_t cluster_num = ROUNDUP(f->datalen, info.cluster_size);
 
 	if (cluster_num <= 1)
@@ -762,9 +774,9 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 	}
 
 	/* FAT_CHAIN */
-	for (tmp_clu = clu; allocated < cluster_num; allocated++) { 
-		if (!(tmp_clu = exfat_get_fat(tmp_clu)))
-			return 0;
+	for (allocated = 1; allocated < cluster_num; allocated++) { 
+		if (!exfat_get_fat(tmp_clu, &tmp_clu))
+			break;;
 		if (tmp_clu == EXFAT_LASTCLUSTER) {
 			pr_err("File size(%lu) and FAT chain size(%lu) are un-matched.\n",
 				f->datalen, allocated * info.cluster_size);
@@ -781,8 +793,10 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 	*data = tmp;
 
 	for (i = 1; i < allocated; i++) {
-		clu = exfat_get_fat(clu);
-		get_cluster(*data + info.cluster_size * i, clu);
+		if (exfat_get_fat(clu, &next_clu))
+			break;
+		get_cluster(*data + info.cluster_size * i, next_clu);
+		clu = next_clu;
 	}
 
 	return allocated;
@@ -826,6 +840,7 @@ uint32_t exfat_set_cluster(struct exfat_fileinfo *f, uint32_t clu, void *data)
  */
 int exfat_check_last_cluster(struct exfat_fileinfo *f, uint32_t clu)
 {
+	uint32_t next_clu;
 	size_t cluster_num = ROUNDUP(f->datalen, info.cluster_size - 1);
 
 	/* NO_FAT_CHAIN */
@@ -833,7 +848,8 @@ int exfat_check_last_cluster(struct exfat_fileinfo *f, uint32_t clu)
 		return (clu == (f->clu + cluster_num - 1));
 
 	/* FAT_CHAIN */
-	return (EXFAT_LASTCLUSTER == exfat_get_fat(clu));
+	exfat_get_fat(clu, &next_clu);
+	return (next_clu == EXFAT_LASTCLUSTER);
 }
 
 /**
@@ -857,7 +873,7 @@ uint32_t exfat_next_cluster(struct exfat_fileinfo *f, uint32_t clu)
 			next_clu = clu + 1;
 	} else {
 	/* FAT_CHAIN */
-		if (!(next_clu = exfat_get_fat(clu)))
+		if (exfat_get_fat(clu, &next_clu))
 			return 0;
 	}
 
@@ -1731,7 +1747,7 @@ int exfat_update_filesize(struct exfat_fileinfo *f, uint32_t clu)
 		if (dir->flags & ALLOC_NOFATCHAIN)
 			parent_clu++;
 		else
-			parent_clu = exfat_get_fat(parent_clu);
+			exfat_get_fat(parent_clu, &parent_clu);
 	}
 	parent_clu = 0;
 out:

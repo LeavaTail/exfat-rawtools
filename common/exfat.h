@@ -290,8 +290,8 @@ int exfat_check_extend_bootsec(void);
 int exfat_check_bootchecksum(void);
 
 /* FAT-entry function prototype */
-uint32_t exfat_get_fat(uint32_t);
-uint32_t exfat_set_fat(uint32_t, uint32_t);
+int exfat_get_fat(uint32_t, uint32_t *);
+int exfat_set_fat(uint32_t, uint32_t);
 int exfat_set_fat_chain(struct exfat_fileinfo *, uint32_t);
 
 /* cluster function prototype */
