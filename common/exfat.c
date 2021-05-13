@@ -40,7 +40,7 @@ int get_sector(void *data, off_t index, size_t count)
 	pr_debug("Get: Sector from 0x%lx to 0x%lx\n", index , index + (count * sector_size) - 1);
 	if ((pread(info.fd, data, count * sector_size, index)) < 0) {
 		pr_err("read: %s\n", strerror(errno));
-		return -1;
+		return -errno;
 	}
 	return 0;
 }
@@ -63,7 +63,7 @@ int set_sector(void *data, off_t index, size_t count)
 	pr_debug("Set: Sector from 0x%lx to 0x%lx\n", index, index + (count * sector_size) - 1);
 	if ((pwrite(info.fd, data, count * sector_size, index)) < 0) {
 		pr_err("write: %s\n", strerror(errno));
-		return -1;
+		return -errno;
 	}
 	return 0;
 }
@@ -116,7 +116,7 @@ int get_clusters(void *data, off_t index, size_t num)
 
 	if (index < EXFAT_FIRST_CLUSTER || index + num > info.cluster_count) {
 		pr_err("Internal Error: invalid cluster range %lu ~ %lu.\n", index, index + num - 1);
-		return -1;
+		return -EINVAL;
 	}
 
 	return get_sector(data,
@@ -142,7 +142,7 @@ int set_clusters(void *data, off_t index, size_t num)
 
 	if (index < EXFAT_FIRST_CLUSTER || index + num > info.cluster_count) {
 		pr_err("Internal Error: invalid cluster range %lu ~ %lu.\n", index, index + num - 1);
-		return -1;
+		return -EINVAL;
 	}
 
 	return set_sector(data,
@@ -1275,12 +1275,12 @@ int exfat_load_bitmap(uint32_t clu)
 
 	if (!info.alloc_table) {
 		pr_err("Internal Error: Allocation Bitmap is not loaded.\n");
-		return -1;
+		return -ENODATA;
 	}
 
 	if (clu < EXFAT_FIRST_CLUSTER || clu > info.cluster_count + 1) {
 		pr_err("Internal Error: Cluster %u is invalid.\n", clu);
-		return -1;
+		return -EINVAL;
 	}
 
 	clu -= EXFAT_FIRST_CLUSTER;
@@ -1307,12 +1307,12 @@ int exfat_save_bitmap(uint32_t clu, uint32_t value)
 
 	if (!info.alloc_table) {
 		pr_err("Internal Error: Allocation Bitmap is not loaded.\n");
-		return -1;
+		return -ENODATA;
 	}
 
 	if (clu < EXFAT_FIRST_CLUSTER || clu > info.cluster_count + 1) {
 		pr_err("cluster: %u is invalid.\n", clu);
-		return -1;
+		return -EINVAL;
 	}
 
 	clu -= EXFAT_FIRST_CLUSTER;
@@ -1352,7 +1352,7 @@ int exfat_load_bitmap_cluster(struct exfat_dentry d)
 	uint64_t datalen;
 
 	if (info.alloc_offset)
-		return -1;
+		return 1;
 
 	fstclu = le32_to_cpu(d.dentry.bitmap.FirstCluster);
 	datalen = le64_to_cpu(d.dentry.bitmap.DataLength);
@@ -1363,7 +1363,7 @@ int exfat_load_bitmap_cluster(struct exfat_dentry d)
 	info.alloc_table = calloc(info.cluster_size, 1);
 	if (!info.alloc_table) {
 		pr_err("Can't load bitmap cluster.\n");
-		return -1;
+		return -ENODATA;
 	}
 
 	get_cluster(info.alloc_table, info.alloc_offset);
@@ -1388,7 +1388,7 @@ int exfat_load_upcase_cluster(struct exfat_dentry d)
 	uint32_t checksum = 0;
 
 	if (info.upcase_size)
-		return -1;
+		return -EINVAL;
 
 	fstclu = le32_to_cpu(d.dentry.upcase.FirstCluster);
 	datalen = le64_to_cpu(d.dentry.upcase.DataLength);
@@ -1400,7 +1400,7 @@ int exfat_load_upcase_cluster(struct exfat_dentry d)
 
 	if (!info.upcase_table) {
 		pr_err("Can't load bitmap cluster.\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	get_cluster(info.upcase_table, info.upcase_offset);
@@ -1425,7 +1425,7 @@ int exfat_load_upcase_cluster(struct exfat_dentry d)
 int exfat_load_volume_label(struct exfat_dentry d)
 {
 	if (info.vol_length)
-		return -1;
+		return 1;
 
 	info.vol_length = d.dentry.vol.CharacterCount;
 	if (info.vol_length) {
@@ -1722,7 +1722,7 @@ int exfat_update_filesize(struct exfat_fileinfo *f, uint32_t clu)
 
 	if (!parent_clu) {
 		pr_err("Can't find cluster %u parent directory.\n", clu);
-		return -1;
+		return -EINVAL;
 	}
 
 	cluster_num = (dir->datalen + (info.cluster_size - 1)) / info.cluster_size;
