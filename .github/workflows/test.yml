@@ -2,7 +2,7 @@ name: Test CI
 
 on:
   pull_request:
-    branches: [ master, develop ]
+    branches: [ main, develop, release ]
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install autoconf automake libtool help2man make expect
     - name: automake
-      run: ./script/bootstrap.sh
+      run: ./scripts/bootstrap.sh
     - name: configure
       run: ./configure
     - name: make

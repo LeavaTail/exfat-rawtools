@@ -18,7 +18,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install autoconf automake libtool help2man make
     - name: automake
-      run: ./script/bootstrap.sh
+      run: ./scripts/bootstrap.sh
     - name: configure
       run: ./configure
     - name: make
@@ -29,7 +29,7 @@ jobs:
         CI: true
     - name: obtain body
       run: |
-        ./script/get_changelog.sh ${{ github.ref }} > body.md
+        ./scripts/get_changelog.sh ${{ github.ref }} > body.md
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -43,7 +43,7 @@ jobs:
         prerelease: false
     - name: Get Name of Artifact
       run: |
-        ARTIFACT_PATHNAME=$(ls debugfatfs-*.tar.gz | head -n 1)
+        ARTIFACT_PATHNAME=$(ls exfat-rawtools-*.tar.gz | head -n 1)
         ARTIFACT_NAME=$(basename $ARTIFACT_PATHNAME)
         echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
         echo "ARTIFACT_PATHNAME=${ARTIFACT_PATHNAME}" >> $GITHUB_ENV
