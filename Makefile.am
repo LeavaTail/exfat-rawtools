@@ -1,7 +1,17 @@
 bin_PROGRAMS = checkexfat statfsexfat lsexfat
-checkexfat_SOURCES = check/checkexfat.c common/print.c common/utf8.c common/exfat.c
-statfsexfat_SOURCES = statfs/statfsexfat.c common/print.c common/utf8.c common/exfat.c
-lsexfat_SOURCES = ls/lsexfat.c common/print.c common/utf8.c common/exfat.c
+lib_LTLIBRARIES = libexfat.la
+
+libexfat_la_SOURCES = common/exfat.c common/utf8.c common/print.c \
+                      common/list2.h common/utf8.h common/exfat.h common/print.h
+
+checkexfat_SOURCES = check/checkexfat.c check/checkexfat.h
+checkexfat_LDADD=libexfat.la
+
+statfsexfat_SOURCES = statfs/statfsexfat.c statfs/statfsexfat.h
+statfsexfat_LDADD=libexfat.la
+
+lsexfat_SOURCES = ls/lsexfat.c ls/lsexfat.h
+lsexfat_LDADD=libexfat.la
 
 man_MANS = checkexfat.8 statfsexfat.8 lsexfat.8
 

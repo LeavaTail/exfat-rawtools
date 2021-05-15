@@ -14,9 +14,7 @@
 #include <linux/types.h>
 
 #include "print.h"
-#include "list.h"
 #include "list2.h"
-#include "stack.h"
 #include "utf8.h"
 
 #if __BYTE_ORDER == __BIG_ENDIAN
