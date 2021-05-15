@@ -2,8 +2,8 @@
 /*
  *  Copyright (C) 2021 LeavaTail
  */
-#ifndef _CHECKEXFAT_H
-#define _CHECKEXFAT_H
+#ifndef _STATEXFAT_H
+#define _STATEXFAT_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -15,9 +15,12 @@
  * Program Name, version, author.
  * displayed when 'usage' and 'version'
  */
-#define PROGRAM_NAME     "checkexfat"
+#define PROGRAM_NAME     "statexfat"
 #define PROGRAM_VERSION  "0.1.0"
 #define PROGRAM_AUTHOR   "LeavaTail"
 #define COPYRIGHT_YEAR   "2021"
 
-#endif /*_CHECKEXFAT_H */
+#define OPTION_CTIME     (1 << 0)
+#define OPTION_ATIME     (1 << 1)
+
+#endif /*_LSEXFAT_H */

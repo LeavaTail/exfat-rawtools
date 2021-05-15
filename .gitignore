@@ -54,7 +54,11 @@ Makefile
 # result file
 *.8
 checkexfat
-statexfat
+statfsexfat
+lsexfat
+.libs/
+libtool
+libexfat.la
 
 # Temporary files
 compile_flags.txt

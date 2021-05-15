@@ -10,12 +10,33 @@
 #include <string.h>
 #include <stdbool.h>
 #include <time.h>
+#include <endian.h>
+#include <linux/types.h>
 
 #include "print.h"
-#include "list.h"
 #include "list2.h"
-#include "stack.h"
 #include "utf8.h"
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define cpu_to_le8(x)        (x)
+#define cpu_to_le16(x)       bswap_16(x)
+#define cpu_to_le32(x)       bswap_32(x)
+#define cpu_to_le64(x)       bswap_64(x)
+#define le8_to_cpu(x)        (x)
+#define le16_to_cpu(x)       bswap_16(x)
+#define le32_to_cpu(x)       bswap_32(x)
+#define le64_to_cpu(x)       bswap_64(x)
+#else
+/* __BYTE_ORDER == __LITTLE_ENDIAN */
+#define cpu_to_le8(x)        (x)
+#define cpu_to_le16(x)       (x)
+#define cpu_to_le32(x)       (x)
+#define cpu_to_le64(x)       (x)
+#define le8_to_cpu(x)        (x)
+#define le16_to_cpu(x)       (x)
+#define le32_to_cpu(x)       (x)
+#define le64_to_cpu(x)       (x)
+#endif
 
 #define SECTORSIZE       512
 #define NAMELENGHT       1024
@@ -36,10 +57,13 @@
 #define EXFAT_FIRST_CLUSTER  2
 #define EXFAT_BADCLUSTER     0xFFFFFFF7
 #define EXFAT_LASTCLUSTER    0xFFFFFFFF
+#define EXFAT_SIGNATURE      0xAA55
+#define EXFAT_EXSIGNATURE    0xAA550000
+
 
 struct exfat_info {
 	int fd;
-	size_t total_size;
+	off_t total_size;
 	uint64_t partition_offset;
 	uint32_t vol_size;
 	uint16_t sector_size;
@@ -50,7 +74,7 @@ struct exfat_info {
 	uint32_t heap_offset;
 	uint32_t root_offset;
 	uint32_t alloc_offset;
-	size_t alloc_length;
+	uint64_t alloc_length;
 	uint8_t *alloc_table;
 	uint32_t upcase_offset;
 	uint32_t upcase_size;
@@ -58,13 +82,13 @@ struct exfat_info {
 	uint8_t vol_length;
 	uint16_t *vol_label;
 	node2_t **root;
-	size_t root_size;
+	uint32_t root_size;
 };
 
 struct exfat_fileinfo {
 	unsigned char *name;
-	size_t namelen;
-	size_t datalen;
+	uint64_t namelen;
+	uint64_t datalen;
 	uint8_t cached;
 	uint16_t attr;
 	uint8_t flags;
@@ -76,107 +100,107 @@ struct exfat_fileinfo {
 };
 
 struct exfat_bootsec {
-	unsigned char JumpBoot[3];
-	unsigned char FileSystemName[8];
-	unsigned char MustBeZero[53];
-	uint64_t  PartitionOffset;
-	uint64_t VolumeLength;
-	uint32_t FatOffset;
-	uint32_t FatLength;
-	uint32_t ClusterHeapOffset;
-	uint16_t ClusterCount;
-	uint32_t FirstClusterOfRootDirectory;
-	uint32_t VolumeSerialNumber;
-	uint16_t FileSystemRevision;
-	uint16_t VolumeFlags;
-	uint8_t BytesPerSectorShift;
-	uint8_t SectorsPerClusterShift;
-	uint8_t NumberOfFats;
-	uint8_t DriveSelect;
-	uint8_t PercentInUse;
-	unsigned char Reserved[7];
-	unsigned char BootCode[390];
-	unsigned char BootSignature[2];
+	__u8 JumpBoot[3];
+	__u8 FileSystemName[8];
+	__u8 MustBeZero[53];
+	__le64 PartitionOffset;
+	__le64 VolumeLength;
+	__le32 FatOffset;
+	__le32 FatLength;
+	__le32 ClusterHeapOffset;
+	__le16 ClusterCount;
+	__le32 FirstClusterOfRootDirectory;
+	__le32 VolumeSerialNumber;
+	__le16 FileSystemRevision;
+	__le16 VolumeFlags;
+	__u8 BytesPerSectorShift;
+	__u8 SectorsPerClusterShift;
+	__u8 NumberOfFats;
+	__u8 DriveSelect;
+	__u8 PercentInUse;
+	__u8 Reserved[7];
+	__u8 BootCode[390];
+	__le16 BootSignature;
 };
 
 struct exfat_dentry {
-	uint8_t EntryType;
+	__u8 EntryType;
 	union {
 		/* Allocation Bitmap Directory Entry */
 		struct {
-			uint8_t BitmapFlags;
-			unsigned char Reserved[18];
-			uint32_t FirstCluster;
-			uint64_t DataLength;
+			__u8 BitmapFlags;
+			__u8 Reserved[18];
+			__le32 FirstCluster;
+			__le64 DataLength;
 		} __attribute__((packed)) bitmap;
 		/* Up-case Table Directory Entry */
 		struct {
-			unsigned char Reserved1[3];
-			uint32_t TableCheckSum;
-			unsigned char Reserved2[12];
-			uint32_t FirstCluster;
-			uint32_t DataLength;
+			__u8 Reserved1[3];
+			__le32 TableCheckSum;
+			__u8 Reserved2[12];
+			__le32 FirstCluster;
+			__le32 DataLength;
 		} __attribute__((packed)) upcase;
 		/* Volume Label Directory Entry */
 		struct {
-			uint8_t CharacterCount;
-			uint16_t VolumeLabel[11];
-			unsigned char Reserved[8];
+			__u8 CharacterCount;
+			__le16 VolumeLabel[11];
+			__u8 Reserved[8];
 		} __attribute__((packed)) vol;
 		/* File Directory Entry */
 		struct {
-			uint8_t SecondaryCount;
-			uint16_t SetChecksum;
-			uint16_t FileAttributes;
-			unsigned char Reserved1[2];
-			uint32_t CreateTimestamp;
-			uint32_t LastModifiedTimestamp;
-			uint32_t LastAccessedTimestamp;
-			uint8_t Create10msIncrement;
-			uint8_t LastModified10msIncrement;
-			uint8_t CreateUtcOffset;
-			uint8_t LastModifiedUtcOffset;
-			uint8_t LastAccessdUtcOffset;
-			unsigned char Reserved2[7];
+			__u8 SecondaryCount;
+			__le16 SetChecksum;
+			__le16 FileAttributes;
+			__u8 Reserved1[2];
+			__le32 CreateTimestamp;
+			__le32 LastModifiedTimestamp;
+			__le32 LastAccessedTimestamp;
+			__u8 Create10msIncrement;
+			__u8 LastModified10msIncrement;
+			__u8 CreateUtcOffset;
+			__u8 LastModifiedUtcOffset;
+			__u8 LastAccessdUtcOffset;
+			__u8 Reserved2[7];
 		} __attribute__((packed)) file;
 		/* Volume GUID Directory Entry */
 		struct {
-			uint8_t SecondaryCount;
-			uint16_t SetChecksum;
-			uint16_t GeneralPrimaryFlags;
-			unsigned char VolumeGuid[16];
-			unsigned char Reserved[10];
+			__u8 SecondaryCount;
+			__le16 SetChecksum;
+			__le16 GeneralPrimaryFlags;
+			__u8 VolumeGuid[16];
+			__u8 Reserved[10];
 		} __attribute__((packed)) guid;
 		/* Stream Extension Directory Entry */
 		struct {
-			uint8_t GeneralSecondaryFlags;
-			unsigned char Reserved1;
-			uint8_t NameLength;
-			uint16_t NameHash;
-			unsigned char Reserved2[2];
-			uint64_t ValidDataLength;
-			unsigned char Reserved3[4];
-			uint32_t FirstCluster;
-			uint64_t DataLength;
+			__u8 GeneralSecondaryFlags;
+			__u8 Reserved1;
+			__u8 NameLength;
+			__le16 NameHash;
+			__u8 Reserved2[2];
+			__le64 ValidDataLength;
+			__u8 Reserved3[4];
+			__le32 FirstCluster;
+			__le64 DataLength;
 		} __attribute__((packed)) stream;
 		/* File Name Directory Entry */
 		struct {
-			uint8_t GeneralSecondaryFlags;
+			__u8 GeneralSecondaryFlags;
 			uint16_t FileName[15];
 		} __attribute__((packed)) name;
 		/* Vendor Extension Directory Entry */
 		struct {
-			uint8_t GeneralSecondaryFlags;
-			unsigned char VendorGuid[16];
-			unsigned char VendorDefined[14];
+			__u8 GeneralSecondaryFlags;
+			__u8 VendorGuid[16];
+			__u8 VendorDefined[14];
 		} __attribute__((packed)) vendor;
 		/* Vendor Allocation Directory Entry */
 		struct {
-			uint8_t GeneralSecondaryFlags;
-			unsigned char VendorGuid[16];
-			unsigned char VendorDefined[2];
-			uint32_t FirstCluster;
-			uint64_t DataLength;
+			__u8 GeneralSecondaryFlags;
+			__u8 VendorGuid[16];
+			__u8 VendorDefined[2];
+			__le32 FirstCluster;
+			__le64 DataLength;
 		} __attribute__((packed)) vendor_alloc;
 	} __attribute__((packed)) dentry;
 } __attribute__ ((packed));
@@ -264,8 +288,8 @@ int exfat_check_extend_bootsec(void);
 int exfat_check_bootchecksum(void);
 
 /* FAT-entry function prototype */
-uint32_t exfat_get_fat(uint32_t);
-uint32_t exfat_set_fat(uint32_t, uint32_t);
+int exfat_get_fat(uint32_t, uint32_t *);
+int exfat_set_fat(uint32_t, uint32_t);
 int exfat_set_fat_chain(struct exfat_fileinfo *, uint32_t);
 
 /* cluster function prototype */
@@ -284,7 +308,7 @@ void exfat_print_cache(void);
 int exfat_check_cache(uint32_t);
 int exfat_get_cache(uint32_t);
 int exfat_clean_cache(uint32_t);
-void exfat_create_cache(node2_t *, uint32_t,
+int exfat_create_cache(node2_t *, uint32_t,
 		struct exfat_dentry *, struct exfat_dentry *, uint16_t *);
 
 /* Special entry function prototype */
@@ -308,6 +332,7 @@ uint16_t exfat_calculate_namehash(uint16_t *, uint8_t);
 int exfat_update_filesize(struct exfat_fileinfo *, uint32_t);
 void exfat_convert_unixtime(struct tm *, uint32_t, uint8_t, uint8_t);
 int exfat_convert_timezone(uint8_t);
+uint32_t exfat_lookup(uint32_t, char *);
 void exfat_convert_uniname(uint16_t *, uint64_t, unsigned char *);
 void exfat_convert_uniname(uint16_t *, uint64_t, unsigned char *);
 uint16_t exfat_convert_upper(uint16_t);

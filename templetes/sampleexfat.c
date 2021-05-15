@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  Copyright (C) 2021 LeavaTail
+ *  Copyright (C) YEAR AUTHOR
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,12 +16,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "statexfat.h"
 #include "exfat.h"
+#include "sampleexfat.h"
 
 FILE *output;
 unsigned int print_level = PRINT_WARNING;
 struct exfat_info info;
+
 /**
  * Special Option(no short option)
  */
@@ -44,11 +45,11 @@ static struct option const longopts[] =
  */
 static void usage(void)
 {
-	fprintf(stderr, "Usage: %s [OPTION]... FILE\n", PROGRAM_NAME);
-	fprintf(stderr, "display file status in exFAT\n");
+	fprintf(stderr, "Usage: %s [OPTION]...\n", PROGRAM_NAME);
+	fprintf(stderr, "DESCRIPTION\n");
 	fprintf(stderr, "\n");
 
-	fprintf(stderr, "  --help\tdisplay this help and exit.\n");
+	fprintf(stderr, "  --help\tDESCRIPTION.\n");
 	fprintf(stderr, "  --version\toutput version information and exit.\n");
 	fprintf(stderr, "\n");
 }
@@ -67,46 +68,16 @@ static void version(const char *command_name, const char *version, const char *a
 }
 
 /**
- * exfat_print_bootsec - print boot sector in exFAT
- * @b:                  boot sector pointer in exFAT (Output)
- */
-void exfat_print_bootsec(struct exfat_bootsec *b)
-{
-	pr_msg("%-28s\t: 0x%08lx (sector)\n", "media-relative sector offset",
-			b->PartitionOffset);
-	pr_msg("%-28s\t: 0x%08x (sector)\n", "Offset of the First FAT",
-			b->FatOffset);
-	pr_msg("%-28s\t: %10u (sector)\n", "Length of FAT table",
-			b->FatLength);
-	pr_msg("%-28s\t: 0x%08x (sector)\n", "Offset of the Cluster Heap",
-			b->ClusterHeapOffset);
-	pr_msg("%-28s\t: %10u (cluster)\n", "The number of clusters",
-			b->ClusterCount);
-	pr_msg("%-28s\t: %10u (cluster)\n", "The first cluster of the root",
-			b->FirstClusterOfRootDirectory);
-	pr_msg("%-28s\t: %10lu (sector)\n", "Size of exFAT volumes",
-			b->VolumeLength);
-	pr_msg("%-28s\t: %10u (byte)\n", "Bytes per sector",
-			info.sector_size);
-	pr_msg("%-28s\t: %10u (byte)\n", "Bytes per cluster",
-			info.cluster_size);
-	pr_msg("%-28s\t: %10u\n", "The number of FATs",
-			b->NumberOfFats);
-	pr_msg("%-28s\t: %10u (%%)\n", "The percentage of clusters",
-			b->PercentInUse);
-	pr_msg("\n");
-}
-
-/**
  * main   - main function
  * @argc:   argument count
  * @argv:   argument vector
  */
 int main(int argc, char *argv[])
 {
+	int i, index;
 	int opt;
 	int longindex;
-	int ret = 0;
+	int ret = -EINVAL;
 	struct exfat_bootsec boot;
 
 	while ((opt = getopt_long(argc, argv,
@@ -146,8 +117,13 @@ int main(int argc, char *argv[])
 
 	if (exfat_load_bootsec(&boot))
 		goto out;
+	if (exfat_store_info(&boot))
+		goto out;
+	if (exfat_traverse_root_directory())
+		goto out;
 
-	exfat_print_bootsec(&boot);
+	ret = EXIT_SUCCESS;
+
 out:
 	exfat_clean_info();
 	return ret;
