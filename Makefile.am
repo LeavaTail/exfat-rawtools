@@ -3,15 +3,11 @@ lib_LTLIBRARIES = libexfat.la
 
 libexfat_la_SOURCES = common/exfat.c common/utf8.c common/print.c \
                       common/list2.h common/utf8.h common/exfat.h common/print.h
+LDADD=libexfat.la $(INTLLIBS)
 
 checkexfat_SOURCES = check/checkexfat.c check/checkexfat.h
-checkexfat_LDADD=libexfat.la
-
 statfsexfat_SOURCES = statfs/statfsexfat.c statfs/statfsexfat.h
-statfsexfat_LDADD=libexfat.la
-
 lsexfat_SOURCES = ls/lsexfat.c ls/lsexfat.h
-lsexfat_LDADD=libexfat.la
 
 man_MANS = checkexfat.8 statfsexfat.8 lsexfat.8
 
