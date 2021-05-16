@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <error.h>
 #include "print.h"
 
 /**
@@ -46,4 +48,56 @@ void hexdump(void *data, size_t size)
 		}
 		pr_msg("\n");
 	}
+}
+
+/**
+ * allwrite - write all data
+ * @fd        Output file discriptor
+ * @buf:      data
+ * @count:    data size
+ *
+ * @return    == 0 (success)
+ *            <  0 (Failed)
+ */
+int allwrite(int fd, void *buf, size_t count)
+{
+	ssize_t n = 0;
+	ssize_t total = 0;
+
+	while (count) {
+		if ((n = write(fd, buf, count)) < 0)
+			return n;
+
+		total += n;
+		buf += n;
+		count -=n;
+	}
+
+	return 0;
+}
+
+/**
+ * allread  - read all data
+ * @fd        Input file discriptor
+ * @buf:      data
+ * @count:    data size
+ *
+ * @return    == 0 (success)
+ *            <  0 (Failed)
+ */
+int allread(int fd, void *buf, size_t count)
+{
+	ssize_t n = 0;
+	ssize_t total = 0;
+
+	while (count) {
+		if ((n = read(fd, buf, count)) < 0)
+			return n;
+
+		total += n;
+		buf += n;
+		count -=n;
+	}
+
+	return 0;
 }
