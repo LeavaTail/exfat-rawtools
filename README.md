@@ -82,6 +82,15 @@ $ lsexfat exfat.img /0_SIMPLE/FILE.TXT
 ----A        2 2021-05-05 01:48:42 FILE.TXT
 ```
 
+### catexfat
+
+catexfat print file contests without mount filesystem.
+
+```
+$ catexfat exfat.img /0_SIMPLE/FILE.TXT
+hello, world
+```
+
 ## Requirements
 
 - [autoconf](http://www.gnu.org/software/autoconf/)
