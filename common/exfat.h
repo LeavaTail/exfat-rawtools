@@ -16,6 +16,7 @@
 #include "print.h"
 #include "list2.h"
 #include "utf8.h"
+#include "bitmap.h"
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 #define cpu_to_le8(x)        (x)

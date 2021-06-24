@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <asm/byteorder.h>
 #include <sys/stat.h>
+#include "bitmap.h"
 #include "exfat.h"
 
 extern struct exfat_info info;
@@ -753,6 +754,7 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 	uint32_t next_clu;
 	size_t allocated;
 	size_t cluster_num = ROUNDUP(f->datalen, info.cluster_size);
+	bitmap_t b;
 
 	if (cluster_num <= 1)
 		return cluster_num;
@@ -773,10 +775,17 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 		return cluster_num;
 	}
 
+	init_bitmap(&b, info.cluster_count);
+
 	/* FAT_CHAIN */
 	for (allocated = 1; allocated < cluster_num; allocated++) { 
 		if (!exfat_get_fat(tmp_clu, &tmp_clu))
 			break;;
+		if (get_bitmap(&b, tmp_clu - EXFAT_FIRST_CLUSTER)) {
+			pr_err("Detected a loop in File (Cluster #%u).\n", clu);
+			break;
+		}
+		set_bitmap(&b, tmp_clu - EXFAT_FIRST_CLUSTER);
 		if (tmp_clu == EXFAT_LASTCLUSTER) {
 			pr_err("File size(%lu) and FAT chain size(%lu) are un-matched.\n",
 				f->datalen, allocated * info.cluster_size);
@@ -787,6 +796,8 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 			break;
 		}
 	}
+
+	free_bitmap(&b);
 
 	if (!(tmp = realloc(*data, info.cluster_size * allocated)))
 		return 0;
