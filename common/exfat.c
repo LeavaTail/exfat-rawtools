@@ -221,7 +221,7 @@ int exfat_store_info(struct exfat_bootsec *b)
 	info.vol_size = cpu_to_le64(b->VolumeLength);
 	info.sector_size = 1 << b->BytesPerSectorShift;
 	info.cluster_size = (1 << b->SectorsPerClusterShift) * info.sector_size;
-	info.cluster_count = cpu_to_le16(b->ClusterCount);
+	info.cluster_count = cpu_to_le32(b->ClusterCount);
 	info.fat_offset = cpu_to_le32(b->FatOffset);
 	info.fat_length = b->NumberOfFats * cpu_to_le32(b->FatLength) * info.sector_size;
 	info.heap_offset = cpu_to_le32(b->ClusterHeapOffset);

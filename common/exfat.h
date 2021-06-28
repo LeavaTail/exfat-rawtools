@@ -68,7 +68,7 @@ struct exfat_info {
 	uint32_t vol_size;
 	uint16_t sector_size;
 	uint32_t cluster_size;
-	uint16_t cluster_count;
+	uint32_t cluster_count;
 	uint32_t fat_offset;
 	uint32_t fat_length;
 	uint32_t heap_offset;
@@ -108,7 +108,7 @@ struct exfat_bootsec {
 	__le32 FatOffset;
 	__le32 FatLength;
 	__le32 ClusterHeapOffset;
-	__le16 ClusterCount;
+	__le32 ClusterCount;
 	__le32 FirstClusterOfRootDirectory;
 	__le32 VolumeSerialNumber;
 	__le16 FileSystemRevision;
