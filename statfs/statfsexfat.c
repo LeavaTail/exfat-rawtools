@@ -81,7 +81,7 @@ void exfat_print_bootsec(struct exfat_bootsec *b)
 	pr_msg("%-28s\t: 0x%08x (sector)\n", "Offset of the Cluster Heap",
 			le32_to_cpu(b->ClusterHeapOffset));
 	pr_msg("%-28s\t: %10u (cluster)\n", "The number of clusters",
-			le16_to_cpu(b->ClusterCount));
+			le32_to_cpu(b->ClusterCount));
 	pr_msg("%-28s\t: %10u (cluster)\n", "The first cluster of the root",
 			le32_to_cpu(b->FirstClusterOfRootDirectory));
 	pr_msg("%-28s\t: %10llu (sector)\n", "Size of exFAT volumes",
