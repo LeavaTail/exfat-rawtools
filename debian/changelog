@@ -1,0 +1,6 @@
+exfat-rawtools (0.1.1-1) unstable; urgency=medium
+
+  * Fix to store the number of ClusterCount
+  * statexfat: Fix to output cluster size
+
+ -- LeavaTail <starbow.duster@gmail.com>  Sun, 19 Sep 2021 19:30:35 +0900

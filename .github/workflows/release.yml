@@ -16,17 +16,11 @@ jobs:
     - name: setup environment
       run: |
         sudo apt-get update
-        sudo apt-get install autoconf automake libtool help2man make
+        sudo apt-get install autoconf automake libtool help2man make dh-make
     - name: automake
       run: ./scripts/bootstrap.sh
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
     - name: generate Distribution
-      run: make dist
-      env:
-        CI: true
+      run: dpkg-buildpackage -b -us -uc -d -rfakeroot
     - name: obtain body
       run: |
         ./scripts/get_changelog.sh ${{ github.ref }} > body.md
@@ -43,7 +37,7 @@ jobs:
         prerelease: false
     - name: Get Name of Artifact
       run: |
-        ARTIFACT_PATHNAME=$(ls exfat-rawtools-*.tar.gz | head -n 1)
+        ARTIFACT_PATHNAME=$(ls ../exfat-rawtools_*_amd64.deb | head -n 1)
         ARTIFACT_NAME=$(basename $ARTIFACT_PATHNAME)
         echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
         echo "ARTIFACT_PATHNAME=${ARTIFACT_PATHNAME}" >> $GITHUB_ENV
