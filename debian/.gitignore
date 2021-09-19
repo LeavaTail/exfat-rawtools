@@ -1,0 +1,6 @@
+.debhelper
+exfat-rawtools
+autoreconf.*
+debhelper-build-stamp
+exfat-rawtools.substvars
+files
