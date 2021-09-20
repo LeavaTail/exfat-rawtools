@@ -88,9 +88,9 @@ void exfat_print_bootsec(struct exfat_bootsec *b)
 			le32_to_cpu(b->FirstClusterOfRootDirectory));
 	pr_msg("%-28s\t: %10llu (sector)\n", "Size of exFAT volumes",
 			le16_to_cpu(b->VolumeLength));
-	pr_msg("%-28s\t: %10lu (byte)\n", "Bytes per sector",
+	pr_msg("%-28s\t: %10" PRIu64 " (byte)\n", "Bytes per sector",
 			secsize);
-	pr_msg("%-28s\t: %10lu (byte)\n", "Bytes per cluster",
+	pr_msg("%-28s\t: %10" PRIu64 " (byte)\n", "Bytes per cluster",
 			(1 << b->SectorsPerClusterShift) * secsize);
 	pr_msg("%-28s\t: %10u\n", "The number of FATs",
 			b->NumberOfFats);

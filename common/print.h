@@ -6,6 +6,7 @@
 #define _PRINT_H
 
 #include <stdio.h>
+#include <inttypes.h>
 /**
  * Debug code
  */

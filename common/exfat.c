@@ -332,7 +332,7 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 	}
 
 	if (vollen < (power2(20) / power2(bps))) {
-		pr_err("invalid VolumeLength: %lu\n", vollen);
+		pr_err("invalid VolumeLength: %" PRIu64 "\n", vollen);
 		ret = -EINVAL;
 	}
 
@@ -752,8 +752,8 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 	void *tmp;
 	uint32_t tmp_clu = clu;
 	uint32_t next_clu;
-	size_t allocated;
-	size_t cluster_num = ROUNDUP(f->datalen, info.cluster_size);
+	uint64_t allocated;
+	uint64_t cluster_num = ROUNDUP(f->datalen, info.cluster_size);
 	bitmap_t b;
 
 	if (cluster_num <= 1)
@@ -766,7 +766,7 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 		*data = tmp;
 		for (i = 1; i < cluster_num; i++) {
 			if (exfat_load_bitmap(clu + i) != 0x1) {
-				pr_err("Cluster #%u becomes allcation consistency. Ignore #%u ~ %lu.\n",
+				pr_err("Cluster #%u becomes allcation consistency. Ignore #%u ~ %" PRIu64 ".\n",
 					clu, clu + i, clu + cluster_num - 1);
 				break;
 			}
@@ -787,7 +787,7 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 		}
 		set_bitmap(&b, tmp_clu - EXFAT_FIRST_CLUSTER);
 		if (tmp_clu == EXFAT_LASTCLUSTER) {
-			pr_err("File size(%lu) and FAT chain size(%lu) are un-matched.\n",
+			pr_err("File size(%" PRIu64 ") and FAT chain size(%" PRIu64 ") are un-matched.\n",
 				f->datalen, allocated * info.cluster_size);
 			break;
 		}
@@ -1111,6 +1111,7 @@ void exfat_print_upcase(void)
 	int byte, offset;
 	size_t uni_count = 0x10 / sizeof(uint16_t);
 	size_t length = info.upcase_size;
+	uint64_t index;
 
 	if (!info.upcase_table) {
 		pr_err("Can't print upcase table\n");
@@ -1125,7 +1126,8 @@ void exfat_print_upcase(void)
 
 	/* Output Table contents */
 	for (offset = 0; offset < length / uni_count; offset++) {
-		pr_msg("%04lxh:  ", offset * 0x10 / sizeof(uint16_t));
+		index = offset * 0x10 / sizeof(uint16_t);
+		pr_msg("%04" PRIx64 ":  ", index);
 		for (byte = 0; byte < uni_count; byte++) {
 			pr_msg("%04x ", cpu_to_le16(info.upcase_table[offset * uni_count + byte]));
 		}
@@ -1368,7 +1370,7 @@ int exfat_load_bitmap_cluster(struct exfat_dentry d)
 	fstclu = le32_to_cpu(d.dentry.bitmap.FirstCluster);
 	datalen = le64_to_cpu(d.dentry.bitmap.DataLength);
 
-	pr_debug("Get: allocation table: cluster 0x%x, size: 0x%lx\n", fstclu, datalen);
+	pr_debug("Get: allocation table: cluster 0x%x, size: 0x%" PRIx64 "\n", fstclu, datalen);
 	info.alloc_offset = fstclu;
 	info.alloc_length = datalen;
 	info.alloc_table = calloc(info.cluster_size, 1);
@@ -1404,7 +1406,7 @@ int exfat_load_upcase_cluster(struct exfat_dentry d)
 	fstclu = le32_to_cpu(d.dentry.upcase.FirstCluster);
 	datalen = le64_to_cpu(d.dentry.upcase.DataLength);
 
-	pr_debug("Get: Up-case table: cluster 0x%x, size: 0x%x\n", fstclu, datalen);
+	pr_debug("Get: Up-case table: cluster 0x%x, size: 0x%" PRIx32 "\n", fstclu, datalen);
 	info.upcase_offset = fstclu;
 	info.upcase_size = datalen;
 	info.upcase_table = calloc(info.cluster_size, 1);
