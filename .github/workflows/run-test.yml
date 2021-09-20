@@ -1,0 +1,51 @@
+name: Perform Test
+
+on:
+  pull_request:
+    branches: [ main, develop, release ]
+
+jobs:
+  build:
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, armhf, arm64]
+        include:
+        - arch: amd64
+          cc: ''
+        - arch: armhf
+          cc: arm-linux-gnueabihf
+        - arch: arm64
+          cc: aarch64-linux-gnu
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: setup environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake libtool help2man make expect
+    - name: automake
+      run: ./scripts/bootstrap.sh
+    - name: native compiler
+      if: ${{ matrix.arch }} == 'amd64'
+      run: | 
+        ./configure
+    - name: cross compiler
+      if: ${{ matrix.arch }} != 'amd64'
+      run: | 
+        sudo apt-get install crossbuild-essential-${{ matrix.arch }}
+        ./configure --host=${{ matrix.cc }}
+    - name: build package
+      run: make
+    - name: perform testing
+      run: make check || ./scripts/correct_log.sh ${{ matrix.arch }}
+    - if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: logs_test
+        path: |
+          logs
+        retention-days: 1

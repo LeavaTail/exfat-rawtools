@@ -69,3 +69,4 @@ config.h.in~
 # Test files
 test-suite.log
 *.img
+logs
