@@ -6,6 +6,7 @@ exFAT filesystem image Tools
 
 - [Description](#Description)
 - [Requirements](#Requirements)
+- [Prerequisite](Prerequisite)
 - [Install](#Install)
 - [Authors](#Authors)
 
@@ -93,11 +94,29 @@ hello, world
 
 ## Requirements
 
+The following operating systems have been confirmed.
+
+- Ubuntu 20.04
+
+In case of 64GB exFAT filesystem,
+there is at least at 200MB memory space to use it.
+(memory consupmption is depends on the number of dentry)
+
+## Prerequisite
+
+This tools needs below packages to build.
+
 - [autoconf](http://www.gnu.org/software/autoconf/)
 - [automake](https://www.gnu.org/software/automake/)
 - [libtool](https://www.gnu.org/software/libtool/)
 - [help2man](https://www.gnu.org/software/help2man/)
 - [make](https://www.gnu.org/software/make/)
+
+For Ubuntu, The folowing command can be installed.
+
+```bash
+$ sudo apt install autoconf automake libtool help2man make
+```
 
 ## Install
 
