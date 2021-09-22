@@ -3,6 +3,7 @@ lib_LTLIBRARIES = libexfat.la
 
 libexfat_la_SOURCES = common/exfat.c common/utf8.c common/print.c \
                       common/list2.h common/utf8.h common/exfat.h common/print.h
+libexfat_la_LDFLAGS = -static
 LDADD=libexfat.la $(INTLLIBS)
 
 checkexfat_SOURCES = check/checkexfat.c check/checkexfat.h
