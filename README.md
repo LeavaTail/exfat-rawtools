@@ -5,7 +5,7 @@ exFAT filesystem image Tools
 ## Table of Contents
 
 - [Description](#Description)
-- [Requirement](#Requirement)
+- [Requirements](#Requirements)
 - [Install](#Install)
 - [Authors](#Authors)
 
