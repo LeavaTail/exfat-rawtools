@@ -983,10 +983,11 @@ int exfat_get_cache(uint32_t clu)
 	}
 
 	info.root_size += DENTRY_LISTSIZE;
-	node2_t **tmp = realloc(info.root, sizeof(node2_t *) * info.root_size);
+	node2_t **tmp = calloc(sizeof(node2_t **), info.root_size);
 	if (tmp) {
+		memcpy(tmp, info.root, info.root_size - DENTRY_LISTSIZE);
+		free(info.root);
 		info.root = tmp;
-		info.root[i] = NULL;
 	} else {
 		pr_warn("Can't expand directory chain, so delete last chain.\n");
 		delete_node2(info.root[--i]);
