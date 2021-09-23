@@ -4,18 +4,29 @@ exFAT filesystem image Tools
 
 ## Table of Contents
 
+- [Introduction](#Introduction)
 - [Description](#Description)
 - [Requirements](#Requirements)
 - [Prerequisite](Prerequisite)
 - [Install](#Install)
 - [Authors](#Authors)
 
-## Description
+## Introduction
 
 exfat-rawtools includes some tools related exFAT filesystem.
 
 These tools can update exFAT filesystem iamges or obtain exFAT filesystem
 informations w/o mounting filesystem.
+
+
+## Description
+
+The following functions have been implemented:
+
+- `checkexfat`: Check filesystem status
+- `statfsexfat`: Display information in Main boot sector
+- `lsexfat`: list directory contents
+- `catexfat` Display file contents
 
 ### checkexfat
 
