@@ -1537,14 +1537,17 @@ out:
 int exfat_traverse_directory(uint32_t clu)
 {
 	int i, j, name_len;
-	uint8_t remaining;
 	uint16_t uniname[MAX_NAME_LENGTH] = {0};
 	size_t index = exfat_get_cache(clu);
 	struct exfat_fileinfo *f = (struct exfat_fileinfo *)info.root[index]->data;
 	size_t entries = info.cluster_size / sizeof(struct exfat_dentry);
 	size_t cluster_num = 1;
+	__u8 prev = 0;
+	__u8 raw_count = 0;
+	__u8 raw_length = 0;
 	void *data;
-	struct exfat_dentry d, next, name;
+	struct exfat_dentry d;
+	struct exfat_dentry file, stream;
 
 	if (f->cached) {
 		pr_debug("Directory %s was already traversed.\n", f->name);
@@ -1565,10 +1568,9 @@ int exfat_traverse_directory(uint32_t clu)
 	entries = (cluster_num * info.cluster_size) / sizeof(struct exfat_dentry);
 	for (i = 0; i < entries; i++) {
 		d = ((struct exfat_dentry *)data)[i];
-
 		switch (d.EntryType) {
 			case DENTRY_UNUSED:
-				break;
+				goto out;
 			case DENTRY_BITMAP:
 				exfat_load_bitmap_cluster(d);
 				break;
@@ -1579,42 +1581,58 @@ int exfat_traverse_directory(uint32_t clu)
 				exfat_load_volume_label(d);
 				break;
 			case DENTRY_FILE:
-				remaining = d.dentry.file.SecondaryCount;
-				/* Stream entry */
-				next = ((struct exfat_dentry *)data)[i + 1];
-				while ((!(next.EntryType & EXFAT_INUSE)) && (next.EntryType != DENTRY_UNUSED)) {
-					pr_debug("This entry was deleted (0x%x).\n", next.EntryType);
-					next = ((struct exfat_dentry *)data)[++i + 1];
-				}
-				if (next.EntryType != DENTRY_STREAM) {
-					pr_warn("File should have stream entry, but This don't have.\n");
+				file = d;
+				raw_count = d.dentry.file.SecondaryCount;
+				prev = DENTRY_FILE;
+				continue;
+			case DENTRY_STREAM:
+				if (prev != DENTRY_FILE) {
+					pr_warn("clu#%u index#%d: It's not continuous files. (Expect: %x, Actual: %x)\n",
+							clu, i, DENTRY_STREAM, prev);
+					prev = DENTRY_UNUSED;
 					continue;
 				}
-				/* Filename entry */
-				name = ((struct exfat_dentry *)data)[i + 2];
-				while ((!(name.EntryType & EXFAT_INUSE)) && (name.EntryType != DENTRY_UNUSED)) {
-					pr_debug("This entry was deleted (0x%x).\n", name.EntryType);
-					name = ((struct exfat_dentry *)data)[++i + 2];
-				}
-				if (name.EntryType != DENTRY_NAME) {
-					pr_warn("File should have name entry, but This don't have.\n");
+				stream = d;
+				raw_length = d.dentry.stream.NameLength;
+				prev = DENTRY_STREAM;
+				continue;
+			case DENTRY_NAME:
+				if (prev != DENTRY_STREAM) {
+					pr_warn("clu#%u index#%d: It's not continuous files. (Expect: %x, Actual: %x)\n",
+							clu, i, DENTRY_NAME, prev);
+					prev = DENTRY_UNUSED;
 					continue;
 				}
-				name_len = next.dentry.stream.NameLength;
-				for (j = 0; j < remaining - 1; j++) {
-					name_len = MIN(ENTRY_NAME_MAX,
-							next.dentry.stream.NameLength - j * ENTRY_NAME_MAX);
+				if (i + raw_count - 1 >= entries) {
+					raw_count = entries - i - 1;
+					raw_length = (raw_count - 1)  * ENTRY_NAME_MAX;
+					pr_warn("clu#%u index#%d: File name is too long. (Expect: < %d, Actual: %d)\n",
+							clu, i, raw_length, stream.dentry.stream.NameLength);
+				}
+				for (j = 0; j < raw_count - 1; j++) {
+					name_len = MIN(ENTRY_NAME_MAX, raw_length - j * ENTRY_NAME_MAX);
 					memcpy(uniname + j * ENTRY_NAME_MAX,
-							(((struct exfat_dentry *)data)[i + 2 + j]).dentry.name.FileName,
+							(((struct exfat_dentry *)data)[i + j]).dentry.name.FileName,
 							name_len * sizeof(uint16_t));
 				}
 
+				file.dentry.file.SecondaryCount = raw_count;
+				stream.dentry.stream.NameLength = raw_length;
 				exfat_create_cache(info.root[index], clu,
-						&d, &next, uniname);
-				i += remaining;
+						&file, &stream, uniname);
+				i += j - 1;
 				break;
 		}
+
+		if (d.EntryType & EXFAT_INUSE)
+			prev = DENTRY_UNUSED;
 	}
+out:
+	if (prev != DENTRY_UNUSED) {
+		pr_warn("clu#%u index#%d: File might be imcomplete. (Expect: < %x, Actual: %x)\n",
+				clu, i, DENTRY_UNUSED, prev);
+	}
+
 	free(data);
 	return 0;
 }
