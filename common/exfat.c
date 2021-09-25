@@ -469,6 +469,7 @@ int exfat_check_bootchecksum(void)
 		}
 	}
 
+	free(bootchecksum);
 	free(b);
 	return 0;
 }
