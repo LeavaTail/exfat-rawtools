@@ -28,6 +28,11 @@ else
 AM_CPPFLAGS += -O2
 endif
 
+if GCOV
+AM_CPPFLAGS += -O0 --no-inline -fprofile-arcs -ftest-coverage
+LDFLAGS += -lgcov
+endif
+
 checkexfat.8: checkexfat$(EXEEXT)
 	help2man --no-discard-stderr --section=8 -N -o checkexfat.8 ./checkexfat
 statfsexfat.8: statfsexfat$(EXEEXT)

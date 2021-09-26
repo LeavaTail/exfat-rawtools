@@ -70,3 +70,6 @@ config.h.in~
 test-suite.log
 *.img
 logs
+
+*.gcda
+*.gcno
