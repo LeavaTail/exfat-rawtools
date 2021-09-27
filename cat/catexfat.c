@@ -16,12 +16,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "statfsexfat.h"
 #include "exfat.h"
+#include "catexfat.h"
 
 FILE *output;
 unsigned int print_level = PRINT_WARNING;
 struct exfat_info info;
+
 /**
  * Special Option(no short option)
  */
@@ -44,11 +45,11 @@ static struct option const longopts[] =
  */
 static void usage(void)
 {
-	fprintf(stderr, "Usage: %s [OPTION]... FILE\n", PROGRAM_NAME);
-	fprintf(stderr, "display file status in exFAT\n");
+	fprintf(stderr, "Usage: %s [OPTION]... IMAGE FILE\n", PROGRAM_NAME);
+	fprintf(stderr, "print on the standard output\n");
 	fprintf(stderr, "\n");
 
-	fprintf(stderr, "  --help\tdisplay this help and exit.\n");
+	fprintf(stderr, "  --help\tDESCRIPTION.\n");
 	fprintf(stderr, "  --version\toutput version information and exit.\n");
 	fprintf(stderr, "\n");
 }
@@ -67,36 +68,41 @@ static void version(const char *command_name, const char *version, const char *a
 }
 
 /**
- * exfat_print_bootsec - print boot sector in exFAT
- * @b:                  boot sector pointer in exFAT (Output)
+ * exfat_print_dentry - print dentry like "cat"
+ * @fst:                first cluster
+ * @index:              cache index
+ *
+ * @return              0 (success)
  */
-void exfat_print_bootsec(struct exfat_bootsec *b)
+static int exfat_print_file(uint32_t fst, int index)
 {
-	uint64_t secsize = 1 << b->BytesPerSectorShift;
+	uint32_t clu;
+	void *data;
+	node2_t *tmp;
+	struct exfat_fileinfo *f;
 
-	pr_msg("%-28s\t: 0x%08llx (sector)\n", "media-relative sector offset",
-			le64_to_cpu(b->PartitionOffset));
-	pr_msg("%-28s\t: 0x%08x (sector)\n", "Offset of the First FAT",
-			le32_to_cpu(b->FatOffset));
-	pr_msg("%-28s\t: %10u (sector)\n", "Length of FAT table",
-			le32_to_cpu(b->FatLength));
-	pr_msg("%-28s\t: 0x%08x (sector)\n", "Offset of the Cluster Heap",
-			le32_to_cpu(b->ClusterHeapOffset));
-	pr_msg("%-28s\t: %10u (cluster)\n", "The number of clusters",
-			le32_to_cpu(b->ClusterCount));
-	pr_msg("%-28s\t: %10u (cluster)\n", "The first cluster of the root",
-			le32_to_cpu(b->FirstClusterOfRootDirectory));
-	pr_msg("%-28s\t: %10llu (sector)\n", "Size of exFAT volumes",
-			le16_to_cpu(b->VolumeLength));
-	pr_msg("%-28s\t: %10" PRIu64 " (byte)\n", "Bytes per sector",
-			secsize);
-	pr_msg("%-28s\t: %10" PRIu64 " (byte)\n", "Bytes per cluster",
-			(1 << b->SectorsPerClusterShift) * secsize);
-	pr_msg("%-28s\t: %10u\n", "The number of FATs",
-			b->NumberOfFats);
-	pr_msg("%-28s\t: %10u (%%)\n", "The percentage of clusters",
-			b->PercentInUse);
-	pr_msg("\n");
+	tmp = info.root[index];
+	if (!tmp)
+		return -ENOENT;
+
+	while (tmp->next != NULL) {
+		tmp = tmp->next;
+		if (tmp->index == fst) { 
+			f = (struct exfat_fileinfo *)tmp->data;
+			break;
+		}
+	}
+	if (!tmp)
+		return -EINVAL;
+
+	data = malloc(info.cluster_size);
+	for (clu = fst; clu != EXFAT_LASTCLUSTER; clu = exfat_next_cluster(f, clu)) {
+		get_cluster(data, clu);
+		allwrite(STDOUT_FILENO, data, info.cluster_size);
+	}
+	free(data);
+
+	return 0;
 }
 
 /**
@@ -106,10 +112,15 @@ void exfat_print_bootsec(struct exfat_bootsec *b)
  */
 int main(int argc, char *argv[])
 {
+	int i, index;
 	int opt;
 	int longindex;
-	int ret = 0;
+	int ret = -EINVAL;
 	struct exfat_bootsec boot;
+	uint32_t clu = 0;
+	uint32_t p_clu = 0;
+	char *path = NULL;
+	struct exfat_fileinfo *f;
 
 	while ((opt = getopt_long(argc, argv,
 					"",
@@ -131,7 +142,7 @@ int main(int argc, char *argv[])
 	print_level = PRINT_DEBUG;
 #endif
 
-	if (optind != argc - 1) {
+	if (optind != argc - 2) {
 		usage();
 		exit(EXIT_FAILURE);
 	}
@@ -145,11 +156,46 @@ int main(int argc, char *argv[])
 		ret = -EIO;
 		goto out;
 	}
+	path = argv[optind + 1];
 
 	if (exfat_load_bootsec(&boot))
 		goto out;
+	if (exfat_store_info(&boot))
+		goto out;
+	if (exfat_traverse_root_directory())
+		goto out;
+	if ((clu = exfat_lookup(info.root_offset, path)) == 0) {
+		ret = ENOENT;
+		goto out;
+	}
 
-	exfat_print_bootsec(&boot);
+	index = exfat_get_cache(clu);
+	/* Directory */
+	if (info.root[index]) {
+		f = info.root[index]->data;
+		pr_err("%s is a directory\n", f->name);
+		ret = -EINVAL;
+		goto out;
+	/* File */
+	} else {
+		if (path[strlen(path) - 1] == '/') {
+			pr_err("'%s': No such file.\n", path);
+			ret = -ENOENT;
+			goto out;
+		}
+		/* obtain parent directory*/
+		for (i = strlen(path); i > 0 && path[i] != '/'; i--);
+		path[i] = '\0';
+
+		if ((p_clu = exfat_lookup(info.root_offset, path)) == 0) {
+			ret = ENOENT;
+			goto out;
+		}
+		exfat_print_file(clu, exfat_get_cache(p_clu));
+	}
+
+	ret = EXIT_SUCCESS;
+
 out:
 	exfat_clean_info();
 	return ret;

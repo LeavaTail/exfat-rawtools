@@ -66,7 +66,6 @@ static inline int delete_node(node_t **head, uint64_t min, uint64_t max)
 	while (*head != NULL) {
 		if (((*head)->index >= min) && ((*head)->index < max)) {
 			tmp = *head;
-			printf("DEL: %lu(%p)\n", tmp->index, tmp);
 			*head = (*head)->next;
 			free(tmp);
 			count++;
@@ -79,11 +78,11 @@ static inline int delete_node(node_t **head, uint64_t min, uint64_t max)
 
 static inline void free_node(node_t **head)
 {
-	node_t *tmp = *head;
+	node_t *tmp;
 
-	//printf("DEL: %lu(%p)\n", tmp->index, tmp);
-	if (!tmp)
+	if (!head && !(*head))
 		return;
+	tmp = *head;
 
 	while (tmp != NULL) {
 		(*head)->next = tmp->next;
