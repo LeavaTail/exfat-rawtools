@@ -56,6 +56,7 @@ Makefile
 checkexfat
 statfsexfat
 lsexfat
+catexfat
 .libs/
 libtool
 libexfat.la
@@ -68,3 +69,7 @@ config.h.in~
 # Test files
 test-suite.log
 *.img
+logs
+
+*.gcda
+*.gcno

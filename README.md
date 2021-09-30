@@ -4,17 +4,29 @@ exFAT filesystem image Tools
 
 ## Table of Contents
 
+- [Introduction](#Introduction)
 - [Description](#Description)
-- [Requirement](#Requirement)
+- [Requirements](#Requirements)
+- [Prerequisite](Prerequisite)
 - [Install](#Install)
 - [Authors](#Authors)
 
-## Description
+## Introduction
 
 exfat-rawtools includes some tools related exFAT filesystem.
 
 These tools can update exFAT filesystem iamges or obtain exFAT filesystem
 informations w/o mounting filesystem.
+
+
+## Description
+
+The following functions have been implemented:
+
+- `checkexfat`: Check filesystem status
+- `statfsexfat`: Display information in Main boot sector
+- `lsexfat`: list directory contents
+- `catexfat` Display file contents
 
 ### checkexfat
 
@@ -82,13 +94,40 @@ $ lsexfat exfat.img /0_SIMPLE/FILE.TXT
 ----A        2 2021-05-05 01:48:42 FILE.TXT
 ```
 
+### catexfat
+
+catexfat print file contests without mount filesystem.
+
+```
+$ catexfat exfat.img /0_SIMPLE/FILE.TXT
+hello, world
+```
+
 ## Requirements
+
+The following operating systems have been confirmed.
+
+- Ubuntu 20.04
+
+In case of 64GB exFAT filesystem,
+there is at least at 200MB memory space to use it.
+(memory consupmption is depends on the number of dentry)
+
+## Prerequisite
+
+This tools needs below packages to build.
 
 - [autoconf](http://www.gnu.org/software/autoconf/)
 - [automake](https://www.gnu.org/software/automake/)
 - [libtool](https://www.gnu.org/software/libtool/)
 - [help2man](https://www.gnu.org/software/help2man/)
 - [make](https://www.gnu.org/software/make/)
+
+For Ubuntu, The folowing command can be installed.
+
+```bash
+$ sudo apt install autoconf automake libtool help2man make
+```
 
 ## Install
 

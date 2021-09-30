@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0] - 2021-09-30
+
+### Added
+
+- catexfat: Initial version
+
+### Fixed
+
+- Make static link library files
+- Fix illegal access in info.root[i]
+- Fix illegal access in traverse dentry
+- Fix un-freed memory in boot checksum
+
 ## [0.1.1] - 2021-06-28
 
 ### Fixed

@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([exfat-rawtools], [0.1.1], [starbow.duster@gmail.com])
+AC_INIT([exfat-rawtools], [0.2.0], [starbow.duster@gmail.com])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
@@ -26,6 +26,18 @@ AS_HELP_STRING([--enable-debug],
                [debug=false])
 
 AM_CONDITIONAL(DEBUG, test x"$debug" = x"true")
+
+AC_ARG_ENABLE(gcov,
+AS_HELP_STRING([--enable-gcov],
+               [enable gcov, default: no]),
+               [case "${enableval}" in
+                       yes) gcov=true ;;
+                       no)  gcov=false ;;
+                       *)   AC_MSG_ERROR([bad value ${enableval} for --enable-gcov]) ;;
+               esac],
+               [debug=false])
+
+AM_CONDITIONAL(GCOV, test x"$gcov" = x"true")
 
 # Checks for libraries.
 

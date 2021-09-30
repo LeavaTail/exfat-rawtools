@@ -6,6 +6,7 @@
 #define _PRINT_H
 
 #include <stdio.h>
+#include <inttypes.h>
 /**
  * Debug code
  */
@@ -34,5 +35,7 @@ extern FILE *output;
 #define pr_msg(fmt, ...)   fprintf(output, fmt, ##__VA_ARGS__)
 
 void hexdump(void *data, size_t size);
+int allwrite(int, void *, size_t);
+int allread(int, void *, size_t);
 
 #endif // _PRINT_H

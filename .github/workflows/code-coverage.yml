@@ -1,0 +1,37 @@
+name: Test Coverage
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  build:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: setup environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake libtool help2man make lcov gawk
+    - name: automake
+      run: ./scripts/bootstrap.sh
+    - name: setup native compiler
+      run: ./configure --enable-gcov
+    - name: make
+      run: make
+    - name: make check
+      run: make check
+    - if: always()
+      name: gcov
+      run: |
+        scripts/correct_coverage.sh
+    - if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: logs
+        path: |
+          logs
+        retention-days: 1

@@ -1,3 +1,13 @@
+exfat-rawtools (0.2.0-1) unstable; urgency=medium
+
+  * catexfat: Initial version
+  * Make static link library files
+  * Fix illegal access in info.root[i]
+  * Fix illegal access in traverse dentry
+  * Fix un-freed memory in boot checksum
+
+ -- LeavaTail <starbow.duster@gmail.com>  Thu, 30 Sep 2021 19:30:14 +0900
+
 exfat-rawtools (0.1.1-1) unstable; urgency=medium
 
   * Fix to store the number of ClusterCount
