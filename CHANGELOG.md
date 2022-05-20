@@ -1,10 +1,11 @@
 # Changelog
 
-## [0.2.0] - 2021-09-30
+## [0.2.0] - 2022-05-21
 
 ### Added
 
 - catexfat: Initial version
+- statexfat: Initial version
 
 ### Fixed
 
