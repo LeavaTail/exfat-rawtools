@@ -154,8 +154,8 @@ double exfat_calculate_fragment(struct exfat_fileinfo *f)
 void exfat_stat_file(struct exfat_fileinfo *f)
 {
 	pr_msg("%-8s: %s\n", "File", f->name);
-	pr_msg("%-8s: %lu\n", "Size", f->datalen);
-	pr_msg("%-8s: %lu\n", "Cluster", ROUNDUP(f->datalen, info.cluster_size));
+	pr_msg("%-8s: %" PRIu64 "\n", "Size", f->datalen);
+	pr_msg("%-8s: %" PRIu64" \n", "Cluster", ROUNDUP(f->datalen, info.cluster_size));
 	
 	if (flags & OPTION_VERBOSE)
 		pr_msg("%-8s: %.8lf%%\n", "Flagment", exfat_calculate_fragment(f));
