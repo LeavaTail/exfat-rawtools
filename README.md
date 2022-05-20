@@ -27,6 +27,7 @@ The following functions have been implemented:
 - `statfsexfat`: Display information in Main boot sector
 - `lsexfat`: list directory contents
 - `catexfat` Display file contents
+- `statexfat` Display file or directory status
 
 ### checkexfat
 
@@ -101,6 +102,23 @@ catexfat print file contests without mount filesystem.
 ```
 $ catexfat exfat.img /0_SIMPLE/FILE.TXT
 hello, world
+```
+
+### statexfat
+
+statexfat display file or directory status for exFAT filesystem.
+
+```
+$ statexfat exfat.img /4_FATCHAIN/FILE2.TXT
+File    : FILE2.TXT
+Size    : 8194
+Cluster : 3 
+First   : 0x0000000d
+Attr    : ----D
+Flags   : FatChain/ AllocationPossible
+Access  : 2021-05-05 01:52:36
+Modify  : 2021-05-05 01:53:53
+Create  : 2021-05-05 01:52:36
 ```
 
 ## Requirements
