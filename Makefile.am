@@ -18,7 +18,8 @@ TESTS = tests/00_init.sh \
         tests/01_test_checkexfat.sh \
         tests/02_test_statfsexfat.sh \
         tests/03_test_lsexfat.sh \
-        tests/04_test_catexfat.sh
+        tests/04_test_catexfat.sh \
+        tests/05_test_statexfat.sh
 
 EXTRA_DIST = common
 AM_CPPFLAGS = -I$(top_srcdir)/common
