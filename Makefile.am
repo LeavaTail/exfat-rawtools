@@ -1,4 +1,4 @@
-bin_PROGRAMS = checkexfat statfsexfat lsexfat catexfat
+bin_PROGRAMS = checkexfat statfsexfat lsexfat catexfat statexfat
 lib_LTLIBRARIES = libexfat.la
 
 libexfat_la_SOURCES = common/exfat.c common/utf8.c common/print.c \
@@ -10,8 +10,9 @@ checkexfat_SOURCES = check/checkexfat.c check/checkexfat.h
 statfsexfat_SOURCES = statfs/statfsexfat.c statfs/statfsexfat.h
 lsexfat_SOURCES = ls/lsexfat.c ls/lsexfat.h
 catexfat_SOURCES = cat/catexfat.c cat/catexfat.h
+statexfat_SOURCES = stat/statexfat.c stat/statexfat.h
 
-man_MANS = checkexfat.8 statfsexfat.8 lsexfat.8 catexfat.8
+man_MANS = checkexfat.8 statfsexfat.8 lsexfat.8 catexfat.8 statexfat.8
 
 TESTS = tests/00_init.sh \
         tests/01_test_checkexfat.sh \
@@ -41,3 +42,5 @@ lsexfat.8: lsexfat$(EXEEXT)
 	help2man --no-discard-stderr --section=8 -N -o lsexfat.8 ./lsexfat
 catexfat.8: catexfat$(EXEEXT)
 	help2man --no-discard-stderr --section=8 -N -o catexfat.8 ./catexfat
+statexfat.8: statexfat$(EXEEXT)
+	help2man --no-discard-stderr --section=8 -N -o statexfat.8 ./statexfat
