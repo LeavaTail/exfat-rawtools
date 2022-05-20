@@ -20,4 +20,6 @@
 #define PROGRAM_AUTHOR   "LeavaTail"
 #define COPYRIGHT_YEAR   "2021"
 
+#define OPTION_VERBOSE   (1 << 0)
+
 #endif /*_STATEXFAT_H */

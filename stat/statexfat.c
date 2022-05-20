@@ -22,6 +22,7 @@
 FILE *output;
 unsigned int print_level = PRINT_WARNING;
 struct exfat_info info;
+uint8_t flags = 0;
 /**
  * Special Option(no short option)
  */
@@ -34,6 +35,7 @@ enum
 /* option data {"long name", needs argument, flags, "short name"} */
 static struct option const longopts[] =
 {
+	{"verbose", no_argument, NULL, 'v'},
 	{"help", no_argument, NULL, GETOPT_HELP_CHAR},
 	{"version", no_argument, NULL, GETOPT_VERSION_CHAR},
 	{0,0,0,0}
@@ -48,6 +50,7 @@ static void usage(void)
 	fprintf(stderr, "display file status in exFAT\n");
 	fprintf(stderr, "\n");
 
+	fprintf(stderr, "  -v, --verbose\tVersion mode.\n");
 	fprintf(stderr, "  --help\tdisplay this help and exit.\n");
 	fprintf(stderr, "  --version\toutput version information and exit.\n");
 	fprintf(stderr, "\n");
@@ -152,9 +155,11 @@ void exfat_stat_file(struct exfat_fileinfo *f)
 {
 	pr_msg("%-8s: %s\n", "File", f->name);
 	pr_msg("%-8s: %lu\n", "Size", f->datalen);
-	pr_msg("%-8s: %lu (Flagment: %.8lf%%)\n", "Cluster",
-			ROUNDUP(f->datalen, info.cluster_size),
-			exfat_calculate_fragment(f));
+	pr_msg("%-8s: %lu\n", "Cluster", ROUNDUP(f->datalen, info.cluster_size));
+	
+	if (flags & OPTION_VERBOSE)
+		pr_msg("%-8s: %.8lf%%\n", "Flagment", exfat_calculate_fragment(f));
+
 	pr_msg("%-8s: 0x%08x\n", "First", f->clu);
 	pr_msg("%-8s: %c%c%c%c%c\n", "Attr", f->attr & ATTR_READ_ONLY ? 'R' : '-',
 			f->attr & ATTR_HIDDEN ? 'H' : '-',
@@ -194,9 +199,12 @@ int main(int argc, char *argv[])
 	struct exfat_fileinfo *f;
 
 	while ((opt = getopt_long(argc, argv,
-					"",
+					"v",
 					longopts, &longindex)) != -1) {
 		switch (opt) {
+			case 'v':
+				flags |= OPTION_VERBOSE;
+				break;
 			case GETOPT_HELP_CHAR:
 				usage();
 				exit(EXIT_SUCCESS);
