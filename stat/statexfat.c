@@ -152,10 +152,14 @@ void exfat_stat_file(struct exfat_fileinfo *f)
 	pr_msg("%-8s: %" PRIu64 "\n", "Size", f->datalen);
 	pr_msg("%-8s: %" PRIu64" \n", "Cluster", ROUNDUP(f->datalen, info.cluster_size));
 	
-	if (flags & OPTION_VERBOSE)
+	if (flags & OPTION_VERBOSE) {
+		pr_msg("%-8s: ", "FAT");
+		exfat_print_fat_chain(f, f->clu);
 		pr_msg("%-8s: %.2lf%%\n", "Flagment", exfat_calculate_fragment(f) * 100);
+	} else {
+		pr_msg("%-8s: 0x%08x\n", "First", f->clu);
+	}
 
-	pr_msg("%-8s: 0x%08x\n", "First", f->clu);
 	pr_msg("%-8s: %c%c%c%c%c\n", "Attr", f->attr & ATTR_READ_ONLY ? 'R' : '-',
 			f->attr & ATTR_HIDDEN ? 'H' : '-',
 			f->attr & ATTR_SYSTEM ? 'S' : '-',
