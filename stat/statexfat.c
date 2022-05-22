@@ -115,8 +115,7 @@ double exfat_calculate_fragment(struct exfat_fileinfo *f)
 	int i;
 	uint32_t clu, next = 0;
 	size_t cluster_num = ROUNDUP(f->datalen, info.cluster_size);
-	long long sum = cluster_num * (info.cluster_count - 2);
-	double weight = 0;
+	size_t weight = 0;
 
 	if (f->flags & ALLOC_NOFATCHAIN)
 		return 0;
@@ -134,16 +133,12 @@ double exfat_calculate_fragment(struct exfat_fileinfo *f)
 		if (next == EXFAT_LASTCLUSTER)
 			break;
 
-		/* Continuous */
-		if (next == clu + 1)
-			continue;
-		if (next - clu > 0)
-			weight += next - clu - 1;
-		if (next - clu < 0)
-			weight += info.cluster_count - (clu - next) - 1;
+		/* fragment */
+		if (next != clu + 1)
+			weight++;
 	}
 
-	return weight * 100 / sum;
+	return (double)weight / cluster_num;
 }
 
 /**
@@ -158,7 +153,7 @@ void exfat_stat_file(struct exfat_fileinfo *f)
 	pr_msg("%-8s: %" PRIu64" \n", "Cluster", ROUNDUP(f->datalen, info.cluster_size));
 	
 	if (flags & OPTION_VERBOSE)
-		pr_msg("%-8s: %.8lf%%\n", "Flagment", exfat_calculate_fragment(f));
+		pr_msg("%-8s: %.2lf%%\n", "Flagment", exfat_calculate_fragment(f) * 100);
 
 	pr_msg("%-8s: 0x%08x\n", "First", f->clu);
 	pr_msg("%-8s: %c%c%c%c%c\n", "Attr", f->attr & ATTR_READ_ONLY ? 'R' : '-',
