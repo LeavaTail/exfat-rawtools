@@ -228,7 +228,7 @@ struct exfat_dentry {
 
 /* exFAT EntryType */
 #define EXFAT_TYPECODE       0x1F
-#define EXFAT TYPEIMPORTANCE 0x20
+#define EXFAT_TYPEIMPORTANCE 0x20
 #define EXFAT_CATEGORY       0x40
 #define EXFAT_INUSE          0x80
 
