@@ -138,13 +138,12 @@ This tools needs below packages to build.
 - [autoconf](http://www.gnu.org/software/autoconf/)
 - [automake](https://www.gnu.org/software/automake/)
 - [libtool](https://www.gnu.org/software/libtool/)
-- [help2man](https://www.gnu.org/software/help2man/)
 - [make](https://www.gnu.org/software/make/)
 
 For Ubuntu, The folowing command can be installed.
 
 ```bash
-$ sudo apt install autoconf automake libtool help2man make
+$ sudo apt install autoconf automake libtool make
 ```
 
 ## Install
