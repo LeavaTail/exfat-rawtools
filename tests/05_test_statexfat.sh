@@ -11,4 +11,6 @@ ${PROG} ${IMAGE} /0_SIMPLE
 ${PROG} ${IMAGE} /4_FATCHAIN/FILE2.TXT
 
 ### Option function ###
+${PROG} --help
+${PROG} --version
 ${PROG} -v ${IMAGE} /4_FATCHAIN/FILE2.TXT

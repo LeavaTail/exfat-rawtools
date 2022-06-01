@@ -11,5 +11,7 @@ ${PROG} ${IMAGE} /
 ${PROG} ${IMAGE} /0_SIMPLE
 
 ### Option function ###
+${PROG} --help
+${PROG} --version
 ${PROG} -c ${IMAGE} /0_SIMPLE
 ${PROG} -u ${IMAGE} /0_SIMPLE
