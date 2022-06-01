@@ -9,3 +9,6 @@ trap 'echo "ERROR: l.$LINENO, exit status = $?" >&2; exit 1' ERR
 ### main function ###
 ${PROG} ${IMAGE} /0_SIMPLE
 ${PROG} ${IMAGE} /4_FATCHAIN/FILE2.TXT
+
+### Option function ###
+${PROG} -v ${IMAGE} /4_FATCHAIN/FILE2.TXT
