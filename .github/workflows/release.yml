@@ -6,13 +6,17 @@ on:
     tags:
       - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
 jobs:
-  build:
-
+  # Native build (Generally, amd64)
+  native_build:
     runs-on: ubuntu-latest
-
     steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
+    # install dependency software
     - name: setup environment
       run: |
         sudo apt-get update
@@ -21,33 +25,86 @@ jobs:
       run: ./scripts/bootstrap.sh
     - name: generate Distribution
       run: dpkg-buildpackage -b -us -uc -d -rfakeroot
-    - name: obtain body
-      run: |
-        ./scripts/get_changelog.sh ${{ github.ref }} > body.md
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+    # dpkg is generated in parent directory
+    - name: prepare to upload artifact
+      run: mv ../*.deb ./
+    # To communicate Deliverables, 
+    - name: artifacts
+      uses: actions/upload-artifact@v2
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body_path: "body.md"
-        draft: false
-        prerelease: false
-    - name: Get Name of Artifact
-      run: |
-        ARTIFACT_PATHNAME=$(ls ../exfat-rawtools_*_amd64.deb | head -n 1)
-        ARTIFACT_NAME=$(basename $ARTIFACT_PATHNAME)
-        echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> $GITHUB_ENV
-        echo "ARTIFACT_PATHNAME=${ARTIFACT_PATHNAME}" >> $GITHUB_ENV
-    - name: Upload Release Asset
-      id: upload-release-asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ env.ARTIFACT_PATHNAME }}
-        asset_name: ${{ env.ARTIFACT_NAME }}
-        asset_content_type: application/gzip
+        name: artifacts
+        path: exfat-rawtools_*_amd64.deb
+
+  # build (arm/arm64) in QEMU
+  qemu_build:
+    strategy:
+      matrix:
+        arch: [armhf, arm64]
+    runs-on: ubuntu-latest
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+      # install dependency software
+      - name: package install
+        run: |
+          sudo apt-get update
+          sudo apt-get install qemu-user-static debootstrap schroot
+      # Create root filesystem for each architecture
+      - name: debootstrap
+        run: sudo qemu-debootstrap --arch=${{ matrix.arch }} --include=autoconf,automake,libtool,make,dh-make focal /chroot/${{ matrix.arch }} http://ports.ubuntu.com/
+      - name: setup schroot
+        run: |
+          echo "[${{ matrix.arch }}-ubuntu]
+          description=Ubuntu 20.04 focal
+          directory=/chroot/${{ matrix.arch }}
+          root-users=$(whoami)
+          users=$(whoami)
+          type=directory" | sudo tee /etc/schroot/chroot.d/${{ matrix.arch }}-ubuntu
+      # chroot and create debian package
+      - name: Run chroot
+        run: |
+          cat << EOF |  script -e -c 'schroot -c ${{ matrix.arch }}-ubuntu -p bash -u root'
+          uname -m
+          cd $PWD
+          ./scripts/bootstrap.sh
+          dpkg-buildpackage -b -us -uc -d
+          ls -lA ../
+          exit
+          EOF
+      # dpkg is generated in parent directory
+      - name: prepare to upload artifact
+        run: mv ../*.deb ./
+      # To communicate Deliverables, 
+      - name: artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: artifacts
+          path: exfat-rawtools_*_${{ matrix.arch }}.deb
+
+  # Release debian package in GitHub
+  release:
+    runs-on: ubuntu-latest
+    needs: [native_build, qemu_build]
+    steps:
+      - uses: actions/checkout@v3
+      # Download each debian package in current directory
+      - name: download deliverables
+        uses: actions/download-artifact@v2
+        with:
+          name: artifacts
+      # Set up release notes
+      - name: obtain body
+        run: |
+          echo "Release ${GITHUB_REF##*/}" > body.md
+          ./scripts/get_changelog.sh ${{ github.ref }} >> body.md
+      # Create release by hub
+      - name: Create Release
+        run: |
+          assets=()
+          for asset in ./exfat-rawtools_*.deb; do
+            assets+=("-a" "$asset")
+          done
+          tag_name="${GITHUB_REF##*/}"
+          hub release create "${assets[@]}" -F body.md "$tag_name"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
