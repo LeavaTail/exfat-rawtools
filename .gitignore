@@ -52,7 +52,6 @@ config.h
 Makefile
 
 # result file
-*.8
 checkexfat
 statfsexfat
 lsexfat
