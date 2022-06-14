@@ -228,7 +228,7 @@ struct exfat_dentry {
 
 /* exFAT EntryType */
 #define EXFAT_TYPECODE       0x1F
-#define EXFAT TYPEIMPORTANCE 0x20
+#define EXFAT_TYPEIMPORTANCE 0x20
 #define EXFAT_CATEGORY       0x40
 #define EXFAT_INUSE          0x80
 
@@ -292,6 +292,7 @@ int exfat_check_bootchecksum(void);
 int exfat_get_fat(uint32_t, uint32_t *);
 int exfat_set_fat(uint32_t, uint32_t);
 int exfat_set_fat_chain(struct exfat_fileinfo *, uint32_t);
+void exfat_print_fat_chain(struct exfat_fileinfo *, uint32_t);
 
 /* cluster function prototype */
 int exfat_alloc_clusters(struct exfat_fileinfo *, uint32_t, size_t);

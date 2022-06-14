@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROG=./catexfat
+PROG=./statexfat
 IMAGE=exfat.img
 RET=0
 
@@ -8,15 +8,15 @@ set -eu -o pipefail
 trap 'echo "ERROR: l.$LINENO, exit status = $?" >&2; exit 1' ERR
 
 ### main function ###
-${PROG} ${IMAGE} /0_SIMPLE/FILE.TXT
+${PROG} ${IMAGE} /0_SIMPLE
+${PROG} ${IMAGE} /4_FATCHAIN/FILE2.TXT
 
 ### Option function ###
 ${PROG} --help
 ${PROG} --version
+${PROG} -v ${IMAGE} /4_FATCHAIN/FILE2.TXT
 
 ### Error path ###
-
-# Failure argument verification
 ${PROG} ${IMAGE} 0 0 0 || RET=$?
 if [ $RET -eq 0 ]; then
 	echo "ERROR: Argument verification may be wrong"
@@ -41,20 +41,6 @@ RET=0
 ${PROG} README.md / || RET=$?
 if [ $RET -eq 0 ]; then
 	echo "ERROR: Image verification may be wrong"
-fi
-RET=0
-
-# Failure Directory verification
-${PROG} ${IMAGE} /0_SIMPLE || RET=$?
-if [ $RET -eq 0 ]; then
-	echo "ERROR: Directory verification may be wrong"
-fi
-RET=0
-
-# Failure File/Directory verification
-${PROG} ${IMAGE} /0_SIMPLE/FILE.TXT/ || RET=$?
-if [ $RET -eq 0 ]; then
-	echo "ERROR: File or Directory verification may be wrong"
 fi
 RET=0
 
