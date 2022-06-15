@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0] - 2022-06-15
+
+### Added
+
+- Support debian package for arm/arm64
+- statexfat: Output fat chain in verbose mode
+
 ## [0.2.0] - 2022-05-21
 
 ### Added
