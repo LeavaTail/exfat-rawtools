@@ -27,6 +27,7 @@ The following functions have been implemented:
 - `statfsexfat`: Display information in Main boot sector
 - `lsexfat`: list directory contents
 - `catexfat` Display file contents
+- `statexfat` Display file or directory status
 
 ### checkexfat
 
@@ -103,6 +104,23 @@ $ catexfat exfat.img /0_SIMPLE/FILE.TXT
 hello, world
 ```
 
+### statexfat
+
+statexfat display file or directory status for exFAT filesystem.
+
+```
+$ statexfat exfat.img /4_FATCHAIN/FILE2.TXT
+File    : FILE2.TXT
+Size    : 8194
+Cluster : 3 
+First   : 0x0000000d
+Attr    : ----D
+Flags   : FatChain/ AllocationPossible
+Access  : 2021-05-05 01:52:36
+Modify  : 2021-05-05 01:53:53
+Create  : 2021-05-05 01:52:36
+```
+
 ## Requirements
 
 The following operating systems have been confirmed.
@@ -120,13 +138,12 @@ This tools needs below packages to build.
 - [autoconf](http://www.gnu.org/software/autoconf/)
 - [automake](https://www.gnu.org/software/automake/)
 - [libtool](https://www.gnu.org/software/libtool/)
-- [help2man](https://www.gnu.org/software/help2man/)
 - [make](https://www.gnu.org/software/make/)
 
 For Ubuntu, The folowing command can be installed.
 
 ```bash
-$ sudo apt install autoconf automake libtool help2man make
+$ sudo apt install autoconf automake libtool make
 ```
 
 ## Install

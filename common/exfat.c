@@ -585,6 +585,41 @@ int exfat_set_fat_chain(struct exfat_fileinfo *f, uint32_t clu)
 	return 0;
 }
 
+/**
+ * exfat_print_fat_chain - print FAT Chain 
+ * @f:                     file information
+ * @clu:                   cluster index
+ */
+void exfat_print_fat_chain(struct exfat_fileinfo *f, uint32_t clu)
+{
+	int i;
+	uint32_t next_clu = 0;
+	size_t cluster_num = ROUNDUP(f->datalen, info.cluster_size);
+
+	pr_msg("0x%08x ", clu);
+
+	for (i = 0;
+		i < cluster_num;
+		i++) {
+		next_clu = exfat_next_cluster(f, clu);
+		switch (next_clu) {
+			case 0:
+			case EXFAT_BADCLUSTER:
+				pr_err(" (Bad FAT Entry)\n");
+				return;
+			case EXFAT_LASTCLUSTER:
+				pr_msg("\n");
+				return;
+			default:
+				pr_msg("-> 0x%08x ", next_clu);
+				clu = next_clu;
+				break;
+		}
+	}
+	pr_err(" (Unexpected FAT Chain)\n");
+	return;
+}
+
 /*************************************************************************************************/
 /*                                                                                               */
 /* CLUSTER FUNCTION                                                                              */

@@ -1,3 +1,10 @@
+exfat-rawtools (0.3.0-1) unstable; urgency=medium
+
+  * Support debian package for arm/arm64
+  * statexfat: Output fat chain in verbose mode
+
+ -- LeavaTail <starbow.duster@gmail.com>  Wed, 15 Jun 2022 22:25:50 +0900
+
 exfat-rawtools (0.2.0-1) unstable; urgency=medium
 
   * catexfat: Initial version

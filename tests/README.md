@@ -32,7 +32,6 @@ The percentage of clusters      :          0 (%)
 |-- 0_SIMPLE
 |   |-- FILE.TXT
 |   `-- DIR
-|       `-- SUBFILE.TXT
 |-- 1_FILENAME
 |  |-- ABCDEFGHIJKLMNOPQRSTUVWXYZ!
 |  |-- ¼
