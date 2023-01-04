@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <error.h>
@@ -17,7 +18,7 @@
  */
 void hexdump(void *data, size_t size)
 {
-	unsigned long skip = 0;
+	uint64_t skip = 0;
 	int line, byte = 0;
 	size_t count = size / 0x10;
 	const char zero[0x10] = {0};

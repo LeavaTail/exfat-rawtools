@@ -1680,7 +1680,7 @@ out:
  *
  * @return                        Checksum
  */
-uint32_t exfat_calculate_bootchecksum(unsigned char *sectors, unsigned short bps)
+uint32_t exfat_calculate_bootchecksum(unsigned char *sectors, uint16_t bps)
 {
 	uint32_t bytes = (uint32_t)bps * 11;
 	uint32_t checksum = 0;

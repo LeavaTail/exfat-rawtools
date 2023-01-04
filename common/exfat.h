@@ -327,7 +327,7 @@ int exfat_load_volume_label(struct exfat_dentry);
 /* File function prototype */
 int exfat_traverse_root_directory(void);
 int exfat_traverse_directory(uint32_t);
-uint32_t exfat_calculate_bootchecksum(unsigned char *, unsigned short);
+uint32_t exfat_calculate_bootchecksum(unsigned char *, uint16_t);
 uint16_t exfat_calculate_checksum(unsigned char *, unsigned char);
 uint32_t exfat_calculate_tablechecksum(unsigned char *, uint64_t);
 uint16_t exfat_calculate_namehash(uint16_t *, uint8_t);
