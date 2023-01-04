@@ -15,7 +15,7 @@ jobs:
     - name: setup environment
       run: |
         sudo apt-get update
-        sudo apt-get install autoconf automake libtool help2man make lcov gawk
+        sudo apt-get install autoconf automake libtool help2man make lcov gawk exfatprogs
     - name: automake
       run: ./scripts/bootstrap.sh
     - name: setup native compiler
