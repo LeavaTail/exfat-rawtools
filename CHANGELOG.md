@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2023-01-04
+
+### fixed
+
+- checkexfat: Fix buffer overrun
+
 ## [0.3.0] - 2022-06-15
 
 ### Added
