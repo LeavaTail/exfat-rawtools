@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
 		goto out;
 	f = (struct exfat_fileinfo *)info.root[0]->data;
 
-	alloc_table = calloc(info.cluster_size, 1);
+	alloc_table = calloc(info.cluster_size, ROUNDUP(info.alloc_length, info.cluster_size));
 	if (!alloc_table)
 		goto fat_free;
 
