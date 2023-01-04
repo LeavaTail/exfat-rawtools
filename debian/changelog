@@ -1,3 +1,26 @@
+exfat-rawtools (0.3.1-1) unstable; urgency=medium
+
+  * checkexfat: Fix buffer overrun
+
+ -- LeavaTail <starbow.duster@gmail.com>  Wed, 04 Jan 2023 20:48:35 +0900
+
+exfat-rawtools (0.3.0-1) unstable; urgency=medium
+
+  * Support debian package for arm/arm64
+  * statexfat: Output fat chain in verbose mode
+
+ -- LeavaTail <starbow.duster@gmail.com>  Wed, 15 Jun 2022 22:25:50 +0900
+
+exfat-rawtools (0.2.0-1) unstable; urgency=medium
+
+  * catexfat: Initial version
+  * Make static link library files
+  * Fix illegal access in info.root[i]
+  * Fix illegal access in traverse dentry
+  * Fix un-freed memory in boot checksum
+
+ -- LeavaTail <starbow.duster@gmail.com>  Thu, 30 Sep 2021 19:30:14 +0900
+
 exfat-rawtools (0.1.1-1) unstable; urgency=medium
 
   * Fix to store the number of ClusterCount
