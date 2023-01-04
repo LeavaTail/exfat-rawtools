@@ -2,7 +2,7 @@ name: Perform Test
 
 on:
   pull_request:
-    branches: [ main, develop, release ]
+    branches: [ main, develop ]
 
 jobs:
   static_test:

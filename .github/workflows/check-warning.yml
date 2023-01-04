@@ -2,7 +2,7 @@ name: Build check
 
 on:
   push:
-    branches: [ main, develop, release ]
+    branches: [ main, develop ]
 
 jobs:
   build:
