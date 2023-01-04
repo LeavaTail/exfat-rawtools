@@ -53,7 +53,7 @@ jobs:
     - name: perform testing
       run: make check || ./scripts/correct_log.sh ${{ matrix.arch }}
     - if: always()
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: logs_test
         path: |
