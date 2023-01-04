@@ -24,14 +24,9 @@ jobs:
       run: make
     - name: make check
       run: make check
-    - if: always()
-      name: gcov
-      run: |
-        scripts/correct_coverage.sh
-    - if: always()
-      uses: actions/upload-artifact@v2
+    - name: Upload coverage reports to Codecov with GitHub Action
+      uses: codecov/codecov-action@v3
       with:
-        name: logs
-        path: |
-          logs
-        retention-days: 1
+        gcov: true
+        fail_ci_if_error: true
+        verbose: true
