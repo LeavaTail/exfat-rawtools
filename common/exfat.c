@@ -1864,11 +1864,9 @@ void exfat_convert_unixtime(struct tm *t, uint32_t time, uint8_t subsec, uint8_t
 	if (tz & 0x80) {
 		int min = 0;
 		time_t tmp_time = mktime(t);
-		struct tm *t2;
 		min = exfat_convert_timezone(tz);
 		tmp_time += (min * 60);
-		t2 = localtime(&tmp_time);
-		*t = *t2;
+		localtime_r(&tmp_time, t);
 	}
 }
 
