@@ -95,7 +95,7 @@ static int exfat_print_dentry(struct exfat_fileinfo *f)
 	dir = f->attr & ATTR_DIRECTORY ? 'D' : '-';
 	arch = f->attr & ATTR_ARCHIVE ? 'A' : '-';
 
-	sprintf(buf, "%d-%02d-%02d %02d:%02d:%02d",
+	snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d",
 		1980 + time.tm_year, time.tm_mon, time.tm_mday,
 		time.tm_hour, time.tm_min, time.tm_sec);
 

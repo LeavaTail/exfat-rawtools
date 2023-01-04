@@ -1843,7 +1843,7 @@ void exfat_convert_unixtime(struct tm *t, uint32_t time, uint8_t subsec, uint8_t
 	min  = (time >> EXFAT_MINUTE) & 0x3f;
 	sec  = (time & 0x1f);
 
-	sprintf(buf, "%d-%02d-%02d %02d:%02d:%02d",
+	snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d",
 		1980 + year, mon, day, hour, min, (sec * 2) + (subsec / 100));
 
 	if ((mon < 1 || 12 < mon) ||
