@@ -56,6 +56,7 @@ checkexfat
 statfsexfat
 lsexfat
 catexfat
+statexfat
 .libs/
 libtool
 libexfat.la

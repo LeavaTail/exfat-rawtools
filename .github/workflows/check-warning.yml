@@ -2,7 +2,7 @@ name: Build check
 
 on:
   push:
-    branches: [ main, develop, release ]
+    branches: [ main, develop ]
 
 jobs:
   build:
@@ -19,7 +19,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: setup environment
       run: |
         sudo apt-get update

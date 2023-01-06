@@ -1680,7 +1680,7 @@ out:
  *
  * @return                        Checksum
  */
-uint32_t exfat_calculate_bootchecksum(unsigned char *sectors, unsigned short bps)
+uint32_t exfat_calculate_bootchecksum(unsigned char *sectors, uint16_t bps)
 {
 	uint32_t bytes = (uint32_t)bps * 11;
 	uint32_t checksum = 0;
@@ -1843,7 +1843,7 @@ void exfat_convert_unixtime(struct tm *t, uint32_t time, uint8_t subsec, uint8_t
 	min  = (time >> EXFAT_MINUTE) & 0x3f;
 	sec  = (time & 0x1f);
 
-	sprintf(buf, "%d-%02d-%02d %02d:%02d:%02d",
+	snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d",
 		1980 + year, mon, day, hour, min, (sec * 2) + (subsec / 100));
 
 	if ((mon < 1 || 12 < mon) ||
@@ -1864,11 +1864,9 @@ void exfat_convert_unixtime(struct tm *t, uint32_t time, uint8_t subsec, uint8_t
 	if (tz & 0x80) {
 		int min = 0;
 		time_t tmp_time = mktime(t);
-		struct tm *t2;
 		min = exfat_convert_timezone(tz);
 		tmp_time += (min * 60);
-		t2 = localtime(&tmp_time);
-		*t = *t2;
+		localtime_r(&tmp_time, t);
 	}
 }
 
@@ -1913,6 +1911,7 @@ uint32_t exfat_lookup(uint32_t clu, char *name)
 	bool found = false;
 	char *path[MAX_NAME_LENGTH] = {};
 	char fullpath[PATHNAME_MAX + 1] = {};
+	char *saveptr = NULL;
 	node2_t *tmp;
 	struct exfat_fileinfo *f;
 
@@ -1927,13 +1926,13 @@ uint32_t exfat_lookup(uint32_t clu, char *name)
 
 	/* Separate pathname by slash */
 	strncpy(fullpath, name, PATHNAME_MAX);
-	path[depth] = strtok(fullpath, "/");
+	path[depth] = strtok_r(fullpath, "/", &saveptr);
 	while (path[depth] != NULL) {
 		if (depth >= MAX_NAME_LENGTH) {
 			pr_err("Pathname is too depth. (> %d)\n", MAX_NAME_LENGTH);
 			return 0;
 		}
-		path[++depth] = strtok(NULL, "/");
+		path[++depth] = strtok_r(NULL, "/", &saveptr);
 	};
 
 	for (i = 0; path[i] && i < depth + 1; i++) {
