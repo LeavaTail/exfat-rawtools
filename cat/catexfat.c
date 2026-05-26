@@ -77,9 +77,12 @@ static void version(const char *command_name, const char *version, const char *a
 static int exfat_print_file(uint32_t fst, int index)
 {
 	uint32_t clu;
+	size_t cluster_num;
+	uint64_t remaining;
 	void *data;
 	node2_t *tmp;
-	struct exfat_fileinfo *f;
+	struct exfat_fileinfo *f = NULL;
+	int ret = 0;
 
 	tmp = info.root[index];
 	if (!tmp)
@@ -92,17 +95,29 @@ static int exfat_print_file(uint32_t fst, int index)
 			break;
 		}
 	}
-	if (!tmp)
+	if (!f)
 		return -EINVAL;
 
 	data = malloc(info.cluster_size);
-	for (clu = fst; clu != EXFAT_LASTCLUSTER; clu = exfat_next_cluster(f, clu)) {
-		get_cluster(data, clu);
-		allwrite(STDOUT_FILENO, data, info.cluster_size);
+	if (!data)
+		return -ENOMEM;
+
+	remaining = f->datalen;
+	cluster_num = ROUNDUP(f->datalen, info.cluster_size);
+	for (clu = fst; cluster_num && clu != EXFAT_LASTCLUSTER; cluster_num--, clu = exfat_next_cluster(f, clu)) {
+		size_t bytes = MIN(remaining, info.cluster_size);
+
+		ret = get_cluster(data, clu);
+		if (ret)
+			break;
+		ret = allwrite(STDOUT_FILENO, data, bytes);
+		if (ret)
+			break;
+		remaining -= bytes;
 	}
 	free(data);
 
-	return 0;
+	return ret;
 }
 
 /**
