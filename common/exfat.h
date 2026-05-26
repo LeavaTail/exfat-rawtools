@@ -66,7 +66,7 @@ struct exfat_info {
 	int fd;
 	off_t total_size;
 	uint64_t partition_offset;
-	uint32_t vol_size;
+	uint64_t vol_size;
 	uint16_t sector_size;
 	uint32_t cluster_size;
 	uint32_t cluster_count;
@@ -258,7 +258,7 @@ static inline bool is_power2(unsigned int n)
 
 static inline uint64_t power2(uint32_t n)
 {
-	return 1 << n;
+	return 1ULL << n;
 }
 
 #define EXFAT_SECTOR(b)      (1 << b.BytesPerSectorShift)

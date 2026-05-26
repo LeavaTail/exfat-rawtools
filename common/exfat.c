@@ -37,11 +37,29 @@ extern struct exfat_info info;
 int get_sector(void *data, off_t index, size_t count)
 {
 	size_t sector_size = info.sector_size;
+	size_t bytes;
+	ssize_t ret;
 
-	pr_debug("Get: Sector from 0x%lx to 0x%lx\n", index , index + (count * sector_size) - 1);
-	if ((pread(info.fd, data, count * sector_size, index)) < 0) {
+	if (index < 0 || count > SIZE_MAX / sector_size) {
+		pr_err("read: invalid range\n");
+		return -EINVAL;
+	}
+
+	bytes = count * sector_size;
+	if (bytes > SSIZE_MAX) {
+		pr_err("read: request is too large\n");
+		return -EINVAL;
+	}
+
+	pr_debug("Get: Sector from 0x%lx to 0x%lx\n", index , index + bytes - 1);
+	ret = pread(info.fd, data, bytes, index);
+	if (ret < 0) {
 		pr_err("read: %s\n", strerror(errno));
 		return -errno;
+	}
+	if ((size_t)ret != bytes) {
+		pr_err("read: unexpected end of file\n");
+		return -EIO;
 	}
 	return 0;
 }
@@ -60,11 +78,29 @@ int get_sector(void *data, off_t index, size_t count)
 int set_sector(void *data, off_t index, size_t count)
 {
 	size_t sector_size = info.sector_size;
+	size_t bytes;
+	ssize_t ret;
 
-	pr_debug("Set: Sector from 0x%lx to 0x%lx\n", index, index + (count * sector_size) - 1);
-	if ((pwrite(info.fd, data, count * sector_size, index)) < 0) {
+	if (index < 0 || count > SIZE_MAX / sector_size) {
+		pr_err("write: invalid range\n");
+		return -EINVAL;
+	}
+
+	bytes = count * sector_size;
+	if (bytes > SSIZE_MAX) {
+		pr_err("write: request is too large\n");
+		return -EINVAL;
+	}
+
+	pr_debug("Set: Sector from 0x%lx to 0x%lx\n", index, index + bytes - 1);
+	ret = pwrite(info.fd, data, bytes, index);
+	if (ret < 0) {
 		pr_err("write: %s\n", strerror(errno));
 		return -errno;
+	}
+	if ((size_t)ret != bytes) {
+		pr_err("write: incomplete write\n");
+		return -EIO;
 	}
 	return 0;
 }
@@ -115,7 +151,8 @@ int get_clusters(void *data, off_t index, size_t num)
 	size_t clu_per_sec = info.cluster_size / info.sector_size;
 	off_t heap_start = info.heap_offset * info.sector_size;
 
-	if (index < EXFAT_FIRST_CLUSTER || index + num > info.cluster_count) {
+	if (num == 0 || index < EXFAT_FIRST_CLUSTER ||
+			(uint64_t)index + num - 1 > info.cluster_count + 1) {
 		pr_err("Internal Error: invalid cluster range %lu ~ %lu.\n", index, index + num - 1);
 		return -EINVAL;
 	}
@@ -141,7 +178,8 @@ int set_clusters(void *data, off_t index, size_t num)
 	size_t clu_per_sec = info.cluster_size / info.sector_size;
 	off_t heap_start = info.heap_offset * info.sector_size;
 
-	if (index < EXFAT_FIRST_CLUSTER || index + num > info.cluster_count) {
+	if (num == 0 || index < EXFAT_FIRST_CLUSTER ||
+			(uint64_t)index + num - 1 > info.cluster_count + 1) {
 		pr_err("Internal Error: invalid cluster range %lu ~ %lu.\n", index, index + num - 1);
 		return -EINVAL;
 	}
@@ -218,15 +256,15 @@ int exfat_store_info(struct exfat_bootsec *b)
 	}
 
 	info.total_size = s.st_size;
-	info.partition_offset = cpu_to_le64(b->PartitionOffset);
-	info.vol_size = cpu_to_le64(b->VolumeLength);
+	info.partition_offset = le64_to_cpu(b->PartitionOffset);
+	info.vol_size = le64_to_cpu(b->VolumeLength);
 	info.sector_size = 1 << b->BytesPerSectorShift;
 	info.cluster_size = (1 << b->SectorsPerClusterShift) * info.sector_size;
-	info.cluster_count = cpu_to_le32(b->ClusterCount);
-	info.fat_offset = cpu_to_le32(b->FatOffset);
-	info.fat_length = b->NumberOfFats * cpu_to_le32(b->FatLength) * info.sector_size;
-	info.heap_offset = cpu_to_le32(b->ClusterHeapOffset);
-	info.root_offset = cpu_to_le32(b->FirstClusterOfRootDirectory);
+	info.cluster_count = le32_to_cpu(b->ClusterCount);
+	info.fat_offset = le32_to_cpu(b->FatOffset);
+	info.fat_length = b->NumberOfFats * le32_to_cpu(b->FatLength) * info.sector_size;
+	info.heap_offset = le32_to_cpu(b->ClusterHeapOffset);
+	info.root_offset = le32_to_cpu(b->FirstClusterOfRootDirectory);
 	info.root[0] = init_node2(info.root_offset, f);
 	if (!info.root[0]) {
 		free(f->name);
@@ -238,7 +276,7 @@ int exfat_store_info(struct exfat_bootsec *b)
 	f->namelen = strlen("/");
 	f->datalen = info.cluster_count * info.cluster_size;
 	f->attr = ATTR_DIRECTORY;
-	f->clu = cpu_to_le32(b->FirstClusterOfRootDirectory);
+	f->clu = le32_to_cpu(b->FirstClusterOfRootDirectory);
 
 	return ret;
 }
@@ -309,12 +347,12 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 	uint8_t zero[sizeof(struct exfat_bootsec)] = {0};
 	uint8_t bps = b->BytesPerSectorShift;
 	uint8_t spc = b->SectorsPerClusterShift;
-	uint32_t fatoff = cpu_to_le32(b->FatOffset);
-	uint32_t fatlen = cpu_to_le32(b->FatLength);
-	uint64_t vollen = cpu_to_le64(b->VolumeLength);
-	uint32_t cluoff = cpu_to_le32(b->ClusterHeapOffset);
-	uint32_t clucnt = cpu_to_le32(b->ClusterCount);
-	uint32_t rootclu = cpu_to_le32(b->FirstClusterOfRootDirectory);
+	uint32_t fatoff = le32_to_cpu(b->FatOffset);
+	uint32_t fatlen = le32_to_cpu(b->FatLength);
+	uint64_t vollen = le64_to_cpu(b->VolumeLength);
+	uint32_t cluoff = le32_to_cpu(b->ClusterHeapOffset);
+	uint32_t clucnt = le32_to_cpu(b->ClusterCount);
+	uint32_t rootclu = le32_to_cpu(b->FirstClusterOfRootDirectory);
 
 	if ((b->JumpBoot[0] != 0xEB) || (b->JumpBoot[1] != 0x76) || (b->JumpBoot[2] != 0x90)) {
 		pr_err("invalid JumpBoot: 0x%x%x%x\n", b->JumpBoot[0], b->JumpBoot[1], b->JumpBoot[2]);
@@ -330,6 +368,19 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		pr_err("invalid MustBeZero \"%53s\"\n", b->MustBeZero);
 		ret = -EINVAL;
 	}
+
+	if ((bps < 9) || (12 < bps)) {
+		pr_err("invalid BytesPerSectorShift: 0x%x\n", bps);
+		ret = -EINVAL;
+	}
+
+	if ((b->NumberOfFats != 1) && (b->NumberOfFats != 2)) {
+		pr_err("invalid NumberOfFats: 0x%x\n", b->NumberOfFats);
+		ret = -EINVAL;
+	}
+
+	if (ret)
+		return ret;
 
 	if (vollen < (power2(20) / power2(bps))) {
 		pr_err("invalid VolumeLength: %" PRIu64 "\n", vollen);
@@ -358,8 +409,8 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
-	if (cpu_to_le16(b->FileSystemRevision) < 0x0100) {
-		pr_err("invalid FileSystemRevision: 0x%04x\n", cpu_to_le16(b->FileSystemRevision));
+	if (le16_to_cpu(b->FileSystemRevision) < 0x0100) {
+		pr_err("invalid FileSystemRevision: 0x%04x\n", le16_to_cpu(b->FileSystemRevision));
 		ret = -EINVAL;
 	}
 
@@ -368,18 +419,8 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
-	if ((bps < 9) || (12 < bps)) {
-		pr_err("invalid BytesPerSectorShift: 0x%x\n", bps);
-		ret = -EINVAL;
-	}
-
 	if (25 - bps < spc) {
 		pr_err("invalid SectorsPerClusterShift: 0x%x\n", spc);
-		ret = -EINVAL;
-	}
-
-	if ((b->NumberOfFats != 1) && (b->NumberOfFats != 2)) {
-		pr_err("invalid NumberOfFats: 0x%x\n", b->NumberOfFats);
 		ret = -EINVAL;
 	}
 
@@ -388,8 +429,8 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
-	if ((b->BootSignature != EXFAT_SIGNATURE)) {
-		pr_err("invalid BootSignature: 0x%x\n", b->BootSignature);
+	if ((le16_to_cpu(b->BootSignature) != EXFAT_SIGNATURE)) {
+		pr_err("invalid BootSignature: 0x%x\n", le16_to_cpu(b->BootSignature));
 		ret = -EINVAL;
 	}
 
@@ -995,7 +1036,7 @@ int exfat_check_cache(uint32_t clu)
 {
 	int i;
 
-	for (i = 0; info.root[i] && i < info.root_size; i++) {
+	for (i = 0; i < info.root_size && info.root[i]; i++) {
 		if (info.root[i]->index == clu)
 			return 1;
 	}
@@ -1012,16 +1053,18 @@ int exfat_check_cache(uint32_t clu)
 int exfat_get_cache(uint32_t clu)
 {
 	int i;
+	uint32_t old_size;
 
 	for (i = 0; i < info.root_size && info.root[i]; i++) {
 		if (info.root[i]->index == clu)
 			return i;
 	}
 
+	old_size = info.root_size;
 	info.root_size += DENTRY_LISTSIZE;
-	node2_t **tmp = calloc(sizeof(node2_t **), info.root_size);
+	node2_t **tmp = calloc(info.root_size, sizeof(node2_t *));
 	if (tmp) {
-		memcpy(tmp, info.root, info.root_size - DENTRY_LISTSIZE);
+		memcpy(tmp, info.root, old_size * sizeof(node2_t *));
 		free(info.root);
 		info.root = tmp;
 	} else {
@@ -1110,12 +1153,17 @@ int exfat_create_cache(node2_t *head, uint32_t clu,
 	/* If this entry is Directory, prepare to create next chain */
 	if ((f->attr & ATTR_DIRECTORY) && (!exfat_check_cache(next_index))) {
 		struct exfat_fileinfo *d = calloc(sizeof(struct exfat_fileinfo), 1);
-		if ((d->name = malloc(f->namelen + 1)) == NULL) {
-			free(f->name);
-			free(f);
+		size_t name_size;
+
+		if (!d) {
 			return -ENOMEM;
 		}
-		strncpy((char *)d->name, (char *)f->name, f->namelen + 1);
+		name_size = strlen((char *)f->name) + 1;
+		if ((d->name = malloc(name_size)) == NULL) {
+			free(d);
+			return -ENOMEM;
+		}
+		memcpy(d->name, f->name, name_size);
 		d->namelen = namelen;
 		d->datalen = le64_to_cpu(stream->dentry.stream.DataLength);
 		d->attr = le16_to_cpu(file->dentry.file.FileAttributes);
@@ -1181,16 +1229,19 @@ void exfat_print_label(void)
 {
 	unsigned char *name;
 
-	name = malloc(info.vol_length * sizeof(uint16_t) + 1);
-	memset(name, '\0', info.vol_length * sizeof(uint16_t) + 1);
+	if (!info.vol_label) {
+		pr_err("Can't print Volume Label\n");
+		return;
+	}
 
-	if (!info.vol_label || !name) {
+	name = calloc(info.vol_length * UTF8_MAX_CHARSIZE + 1, 1);
+	if (!name) {
 		pr_err("Can't print Volume Label\n");
 		return;
 	}
 
 	pr_msg("volume Label: ");
-	utf16s_to_utf8s(cpu_to_le16(info.vol_label), info.vol_length, name);
+	utf16s_to_utf8s(info.vol_label, info.vol_length, name);
 	pr_msg("%s\n", name);
 	free(name);
 }
@@ -1378,12 +1429,20 @@ int exfat_save_bitmap(uint32_t clu, uint32_t value)
 
 	pr_debug("0x%x\n", info.alloc_table[byte]);
 	raw_bitmap = malloc(info.cluster_size);
-	get_cluster(raw_bitmap, info.alloc_offset);
+	if (!raw_bitmap)
+		return -ENOMEM;
+	if (get_cluster(raw_bitmap, info.alloc_offset)) {
+		free(raw_bitmap);
+		return -EIO;
+	}
 	if (value)
 		raw_bitmap[byte] |= mask;
 	else
 		raw_bitmap[byte] &= ~mask;
-	set_cluster(raw_bitmap, info.alloc_offset);
+	if (set_cluster(raw_bitmap, info.alloc_offset)) {
+		free(raw_bitmap);
+		return -EIO;
+	}
 	free(raw_bitmap);
 	return 0;
 }
@@ -1416,8 +1475,10 @@ int exfat_load_bitmap_cluster(struct exfat_dentry d)
 		return -ENODATA;
 	}
 
-	get_cluster(info.alloc_table, info.alloc_offset);
-	exfat_concat_cluster_fast(info.alloc_offset, (void **)(&(info.alloc_table)), info.alloc_length);
+	if (get_cluster(info.alloc_table, info.alloc_offset))
+		return -EIO;
+	if (!exfat_concat_cluster_fast(info.alloc_offset, (void **)(&(info.alloc_table)), info.alloc_length))
+		return -EIO;
 	pr_info("Allocation Bitmap (#%u):\n", info.alloc_offset);
 
 	return 0;
@@ -1453,8 +1514,10 @@ int exfat_load_upcase_cluster(struct exfat_dentry d)
 		return -ENOMEM;
 	}
 
-	get_cluster(info.upcase_table, info.upcase_offset);
-	exfat_concat_cluster_fast(info.upcase_offset, (void **)(&(info.upcase_table)), info.upcase_size);
+	if (get_cluster(info.upcase_table, info.upcase_offset))
+		return -EIO;
+	if (!exfat_concat_cluster_fast(info.upcase_offset, (void **)(&(info.upcase_table)), info.upcase_size))
+		return -EIO;
 
 	checksum = exfat_calculate_tablechecksum((unsigned char *)info.upcase_table, info.upcase_size);
 	if (checksum != d.dentry.upcase.TableCheckSum)
@@ -1478,6 +1541,11 @@ int exfat_load_volume_label(struct exfat_dentry d)
 		return 1;
 
 	info.vol_length = d.dentry.vol.CharacterCount;
+	if (info.vol_length > 11) {
+		pr_err("invalid VolumeLabel length: %u\n", info.vol_length);
+		info.vol_length = 0;
+		return -EINVAL;
+	}
 	if (info.vol_length) {
 		pr_debug("Get: Volume label: size: 0x%x\n",
 				d.dentry.vol.CharacterCount);
@@ -1555,8 +1623,14 @@ out:
 		return -1;
 	}
 
-	for (allocated = 0; next_clu != EXFAT_LASTCLUSTER && next_clu != 0; allocated++)
+	for (allocated = 0;
+			allocated <= info.cluster_count && next_clu != EXFAT_LASTCLUSTER && next_clu != 0;
+			allocated++)
 		next_clu = exfat_next_cluster(root, next_clu);
+	if (allocated > info.cluster_count) {
+		pr_err("Detected a loop in Root Directory (Cluster #%u).\n", clu);
+		return -EINVAL;
+	}
 	root->datalen = info.cluster_size * allocated;
 
 	return exfat_traverse_directory(clu);
@@ -1628,6 +1702,12 @@ int exfat_traverse_directory(uint32_t clu)
 					prev = DENTRY_UNUSED;
 					continue;
 				}
+				if (raw_count < 2) {
+					pr_warn("clu#%u index#%d: invalid secondary count: %u\n",
+							clu, i, raw_count);
+					prev = DENTRY_UNUSED;
+					continue;
+				}
 				stream = d;
 				raw_length = d.dentry.stream.NameLength;
 				prev = DENTRY_STREAM;
@@ -1639,11 +1719,21 @@ int exfat_traverse_directory(uint32_t clu)
 					prev = DENTRY_UNUSED;
 					continue;
 				}
+				if (raw_length > MAX_NAME_LENGTH || raw_length > (raw_count - 1) * ENTRY_NAME_MAX) {
+					pr_warn("clu#%u index#%d: invalid file name length: %u\n",
+							clu, i, raw_length);
+					prev = DENTRY_UNUSED;
+					continue;
+				}
 				if (i + raw_count - 1 >= entries) {
 					raw_count = entries - i - 1;
 					raw_length = (raw_count - 1)  * ENTRY_NAME_MAX;
 					pr_warn("clu#%u index#%d: File name is too long. (Expect: < %d, Actual: %d)\n",
 							clu, i, raw_length, stream.dentry.stream.NameLength);
+				}
+				if (raw_count < 2) {
+					prev = DENTRY_UNUSED;
+					continue;
 				}
 				for (j = 0; j < raw_count - 1; j++) {
 					name_len = MIN(ENTRY_NAME_MAX, raw_length - j * ENTRY_NAME_MAX);
