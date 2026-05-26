@@ -1,10 +1,11 @@
 #!/bin/bash
 
 PROGS=("./checkexfat" "./statfsexfat")
-IMAGE=huge.img
+IMAGE=$(mktemp -u "${TMPDIR:-/tmp}/exfat-rawtools-huge.XXXXXX.img")
 SIZE=2T
 
 set -eu -o pipefail
+trap 'rm -f "${IMAGE}"' EXIT
 trap 'echo "ERROR: l.$LINENO, exit status = $?" >&2; exit 1' ERR
 
 # Create sparse file and format exfat
@@ -16,6 +17,3 @@ for i in "${PROGS[@]}"
 do
 	${i} ${IMAGE}
 done
-
-# Clean up
-rm -f ${IMAGE}
