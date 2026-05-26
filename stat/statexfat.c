@@ -50,7 +50,7 @@ static void usage(void)
 	fprintf(stderr, "display file status in exFAT\n");
 	fprintf(stderr, "\n");
 
-	fprintf(stderr, "  -v, --verbose\tVersion mode.\n");
+	fprintf(stderr, "  -v, --verbose\tVerbose mode.\n");
 	fprintf(stderr, "  --help\tdisplay this help and exit.\n");
 	fprintf(stderr, "  --version\toutput version information and exit.\n");
 	fprintf(stderr, "\n");
@@ -155,7 +155,7 @@ void exfat_stat_file(struct exfat_fileinfo *f)
 	if (flags & OPTION_VERBOSE) {
 		pr_msg("%-8s: ", "FAT");
 		exfat_print_fat_chain(f, f->clu);
-		pr_msg("%-8s: %.2lf%%\n", "Flagment", exfat_calculate_fragment(f) * 100);
+		pr_msg("%-8s: %.2lf%%\n", "Fragment", exfat_calculate_fragment(f) * 100);
 	} else {
 		pr_msg("%-8s: 0x%08x\n", "First", f->clu);
 	}
@@ -164,7 +164,7 @@ void exfat_stat_file(struct exfat_fileinfo *f)
 			f->attr & ATTR_HIDDEN ? 'H' : '-',
 			f->attr & ATTR_SYSTEM ? 'S' : '-',
 			f->attr & ATTR_DIRECTORY ? 'D' : '-',
-			f->attr & ATTR_ARCHIVE ? 'D' : '-');
+			f->attr & ATTR_ARCHIVE ? 'A' : '-');
 	pr_msg("%-8s: %s/ %s\n", "Flags",
 			f->flags & ALLOC_NOFATCHAIN ? "NoFatChain" : "FatChain",
 			f->flags & ALLOC_POSIBLE ? "AllocationPossible" : "AllocationImpossible");

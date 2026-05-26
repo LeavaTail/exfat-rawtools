@@ -47,11 +47,11 @@ static struct option const longopts[] =
 static void usage(void)
 {
 	fprintf(stderr, "Usage: %s [OPTION]... IMAGE FILE\n", PROGRAM_NAME);
-	fprintf(stderr, "display file status in exFAT\n");
+	fprintf(stderr, "list directory contents in exFAT image\n");
 	fprintf(stderr, "\n");
 
-	fprintf(stderr, "  --c\t\tshow CreateTimestamp.\n");
-	fprintf(stderr, "  --u\t\tshow LastAccessdTimestamp.\n");
+	fprintf(stderr, "  -c\t\tshow CreateTimestamp.\n");
+	fprintf(stderr, "  -u\t\tshow LastAccessedTimestamp.\n");
 	fprintf(stderr, "  --help\tdisplay this help and exit.\n");
 	fprintf(stderr, "  --version\toutput version information and exit.\n");
 	fprintf(stderr, "\n");
@@ -181,10 +181,10 @@ int main(int argc, char *argv[])
 					longopts, &longindex)) != -1) {
 		switch (opt) {
 			case 'c':
-				flags |= OPTION_ATIME;
+				flags |= OPTION_CTIME;
 				break;
 			case 'u':
-				flags |= OPTION_CTIME;
+				flags |= OPTION_ATIME;
 				break;
 			case GETOPT_HELP_CHAR:
 				usage();

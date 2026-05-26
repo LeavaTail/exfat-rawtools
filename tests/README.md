@@ -18,7 +18,7 @@ The number of clusters          :      32256 (cluster)
 The first cluster of the root   :          5 (cluster)
 Size of exFAT volumes           :     262144 (sector)
 Bytes per sector                :        512 (byte)
-Bytes per cluster               :          0 (byte)
+Bytes per cluster               :       4096 (byte)
 The number of FATs              :          1
 The percentage of clusters      :          0 (%)
 ```

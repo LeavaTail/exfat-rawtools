@@ -46,7 +46,7 @@ static struct option const longopts[] =
 static void usage(void)
 {
 	fprintf(stderr, "Usage: %s [OPTION]... FILE\n", PROGRAM_NAME);
-	fprintf(stderr, "Write any data to exfat image\n");
+	fprintf(stderr, "check exFAT filesystem image\n");
 	fprintf(stderr, "\n");
 
 	fprintf(stderr, "  --help\tdisplay this help and exit.\n");
