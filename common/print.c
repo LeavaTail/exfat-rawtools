@@ -68,6 +68,8 @@ int allwrite(int fd, void *buf, size_t count)
 	while (count) {
 		if ((n = write(fd, buf, count)) < 0)
 			return n;
+		if (n == 0)
+			return -1;
 
 		total += n;
 		buf += n;
@@ -94,6 +96,8 @@ int allread(int fd, void *buf, size_t count)
 	while (count) {
 		if ((n = read(fd, buf, count)) < 0)
 			return n;
+		if (n == 0)
+			return -1;
 
 		total += n;
 		buf += n;
