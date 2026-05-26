@@ -3,6 +3,11 @@ name: Build check
 on:
   push:
     branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -19,21 +24,21 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     - name: setup environment
       run: |
         sudo apt-get update
-        sudo apt-get install autoconf automake libtool help2man make
+        sudo apt-get install -y autoconf automake libtool help2man make
     - name: automake
       run: ./scripts/bootstrap.sh
     - name: native compiler
-      if: ${{ matrix.arch }} == 'amd64'
+      if: matrix.arch == 'amd64'
       run: |
         ./configure CFLAGS=-Werror
     - name: cross compiler
-      if: ${{ matrix.arch }} != 'amd64'
+      if: matrix.arch != 'amd64'
       run: |
-        sudo apt-get install crossbuild-essential-${{ matrix.arch }}
+        sudo apt-get install -y crossbuild-essential-${{ matrix.arch }}
         ./configure CFLAGS=-Werror --host=${{ matrix.cc }}
     - name: build package
       run: make

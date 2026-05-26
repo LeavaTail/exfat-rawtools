@@ -4,19 +4,21 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+permissions:
+  contents: read
+
 jobs:
   static_test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
       with:
-        python-version: '3.10'
+        python-version: '3.13'
     - run: pip install cpplint
     - run: cpplint --recursive --filter=-whitespace,-build,-readability .
 
   dynamic_test:
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -32,30 +34,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     - name: setup environment
       run: |
         sudo apt-get update
-        sudo apt-get install autoconf automake libtool help2man make expect
+        sudo apt-get install -y autoconf automake libtool help2man make expect
     - name: automake
       run: ./scripts/bootstrap.sh
     - name: native compiler
-      if: ${{ matrix.arch }} == 'amd64'
-      run: | 
+      if: matrix.arch == 'amd64'
+      run: |
         ./configure
     - name: cross compiler
-      if: ${{ matrix.arch }} != 'amd64'
-      run: | 
-        sudo apt-get install crossbuild-essential-${{ matrix.arch }}
+      if: matrix.arch != 'amd64'
+      run: |
+        sudo apt-get install -y crossbuild-essential-${{ matrix.arch }}
         ./configure --host=${{ matrix.cc }}
     - name: build package
       run: make
     - name: perform testing
       run: make check || ./scripts/correct_log.sh ${{ matrix.arch }}
     - if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v6
       with:
-        name: logs_test
-        path: |
-          logs
+        name: logs-test-${{ matrix.arch }}
+        path: logs
         retention-days: 1
