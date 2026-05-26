@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <errno.h>
 
 typedef struct {
 	uint8_t *data;
@@ -18,6 +19,8 @@ typedef struct {
 static inline int init_bitmap(bitmap_t *b, size_t s)
 {
 	b->data = calloc((s / CHAR_BIT) + 1, sizeof(uint8_t));
+	if (!b->data)
+		return -ENOMEM;
 	b->size = s;
 
 	return 0;
@@ -28,6 +31,9 @@ static inline int get_bitmap(bitmap_t *b, size_t value)
 	size_t offset;
 	size_t shift;
 	uint8_t mask;
+
+	if (!b->data || value >= b->size)
+		return -EINVAL;
 
 	offset = value / CHAR_BIT;
 	shift = value % CHAR_BIT;
@@ -41,6 +47,9 @@ static inline int set_bitmap(bitmap_t *b, size_t value)
 	size_t offset;
 	size_t shift;
 	uint8_t mask;
+
+	if (!b->data || value >= b->size)
+		return -EINVAL;
 
 	offset = value / CHAR_BIT;
 	shift = value % CHAR_BIT;

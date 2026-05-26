@@ -353,6 +353,9 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 	uint32_t cluoff = le32_to_cpu(b->ClusterHeapOffset);
 	uint32_t clucnt = le32_to_cpu(b->ClusterCount);
 	uint32_t rootclu = le32_to_cpu(b->FirstClusterOfRootDirectory);
+	uint64_t sector_size;
+	uint64_t min_fat_len;
+	uint64_t fat_end;
 
 	if ((b->JumpBoot[0] != 0xEB) || (b->JumpBoot[1] != 0x76) || (b->JumpBoot[2] != 0x90)) {
 		pr_err("invalid JumpBoot: 0x%x%x%x\n", b->JumpBoot[0], b->JumpBoot[1], b->JumpBoot[2]);
@@ -374,6 +377,11 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
+	if (bps <= 25 && 25 - bps < spc) {
+		pr_err("invalid SectorsPerClusterShift: 0x%x\n", spc);
+		ret = -EINVAL;
+	}
+
 	if ((b->NumberOfFats != 1) && (b->NumberOfFats != 2)) {
 		pr_err("invalid NumberOfFats: 0x%x\n", b->NumberOfFats);
 		ret = -EINVAL;
@@ -382,29 +390,34 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 	if (ret)
 		return ret;
 
-	if (vollen < (power2(20) / power2(bps))) {
+	sector_size = power2(bps);
+	min_fat_len = ((((uint64_t)clucnt + EXFAT_FIRST_CLUSTER) * sizeof(uint32_t)) +
+			sector_size - 1) / sector_size;
+	fat_end = (uint64_t)fatoff + (uint64_t)fatlen * b->NumberOfFats;
+
+	if (vollen < (power2(20) / sector_size)) {
 		pr_err("invalid VolumeLength: %" PRIu64 "\n", vollen);
 		ret = -EINVAL;
 	}
 
-	if ((fatoff < 24) || ((cluoff - fatlen * b->NumberOfFats) < fatoff)) {
+	if ((fatoff < 24) || (fat_end > cluoff)) {
 		pr_err("invalid FatOffset: 0x%x\n", b->FatOffset);
 		ret = -EINVAL;
 	}
 
-	if ((fatlen < (clucnt + EXFAT_FIRST_CLUSTER) * 2 / power2(bps - 1))
-		|| (((cluoff - fatoff) / b->NumberOfFats) < fatoff)) {
+	if (fatlen < min_fat_len) {
 		pr_err("invalid FatLength : 0x%x\n", fatlen);
 		ret = -EINVAL;
 	}
 
-	if ((cluoff < (fatoff + fatlen * b->NumberOfFats)) || ((clucnt * power2(bps)) < cluoff)) {
+	if ((cluoff < fat_end) || (((uint64_t)clucnt * sector_size) < cluoff)) {
 		pr_err("invalid ClusterHeapOffset : 0x%x\n", cluoff);
 		ret = -EINVAL;
 	}
 
-	if (((vollen - cluoff) / power2(b->SectorsPerClusterShift) != clucnt)
-		&& (power2(32) - 11 != clucnt)) {
+	if ((vollen < cluoff) ||
+		(((vollen - cluoff) / power2(spc) != clucnt)
+		&& (power2(32) - 11 != clucnt))) {
 		pr_err("invalid ClusterCount: 0x%x\n", clucnt);
 		ret = -EINVAL;
 	}
@@ -414,13 +427,8 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
-	if ((rootclu < 2) || (clucnt + 1 < rootclu)) {
+	if ((rootclu < 2) || ((uint64_t)clucnt + 1 < rootclu)) {
 		pr_err("invalid FirstClusterOfRootDirectory: 0x%x\n", rootclu);
-		ret = -EINVAL;
-	}
-
-	if (25 - bps < spc) {
-		pr_err("invalid SectorsPerClusterShift: 0x%x\n", spc);
 		ret = -EINVAL;
 	}
 
@@ -537,11 +545,6 @@ int exfat_get_fat(uint32_t clu, uint32_t *entry)
 	uint32_t *fat;
 	uint32_t offset = (clu) % entry_per_sector;
 
-	if ((fat = malloc(info.sector_size)) == NULL)
-		return -ENOMEM;;
-	if (get_sector(fat, fat_index, 1))
-		goto out;
-
 	if (clu == EXFAT_BADCLUSTER)
 		pr_err("Internal Error: Cluster %x is bad cluster.\n", clu);
 	else if (clu == EXFAT_LASTCLUSTER)
@@ -551,8 +554,18 @@ int exfat_get_fat(uint32_t clu, uint32_t *entry)
 	else
 		ret = 0;
 
+	if (ret)
+		return ret;
+
+	if ((fat = malloc(info.sector_size)) == NULL)
+		return -ENOMEM;
+	if (get_sector(fat, fat_index, 1)) {
+		ret = -EIO;
+		goto out;
+	}
+
 	if (!ret) {
-		*entry = cpu_to_le32(fat[offset]);
+		*entry = le32_to_cpu(fat[offset]);
 		pr_debug("Get FAT[%u]  0x%x.\n", clu, *entry);
 	}
 
@@ -571,18 +584,11 @@ out:
  */
 int exfat_set_fat(uint32_t clu, uint32_t entry)
 {
-	uint32_t ret = -EINVAL;
+	int ret = -EINVAL;
 	size_t entry_per_sector = info.sector_size / sizeof(uint32_t);
 	uint32_t fat_index = (info.fat_offset +  clu / entry_per_sector) * info.sector_size;
 	uint32_t *fat;
 	uint32_t offset = (clu) % entry_per_sector;
-
-	if ((fat = malloc(info.sector_size)) == NULL)
-		return -ENOMEM;
-	if (get_sector(fat, fat_index, 1))
-		goto out;
-
-	ret = fat[offset];
 
 	if (clu == EXFAT_BADCLUSTER || entry == EXFAT_BADCLUSTER)
 		pr_err("Internal Error: Cluster %x or Entry %x is bad cluster.\n", clu, entry);
@@ -590,15 +596,26 @@ int exfat_set_fat(uint32_t clu, uint32_t entry)
 		pr_err("Internal Error: Cluster: %u is the last cluster.\n", clu);
 	else if (clu < EXFAT_FIRST_CLUSTER || clu > info.cluster_count + 1)
 		pr_err("Internal Error: Cluster %u is invalid.\n", clu);
-	else if (entry < EXFAT_FIRST_CLUSTER || entry > info.cluster_count + 1)
+	else if (entry != EXFAT_LASTCLUSTER &&
+			(entry < EXFAT_FIRST_CLUSTER || entry > info.cluster_count + 1))
 		pr_err("Internal Error: Entry %u is invalid.\n", entry);
 	else
 		ret = 0;
+
+	if (ret)
+		return ret;
+
+	if ((fat = malloc(info.sector_size)) == NULL)
+		return -ENOMEM;
+	if (get_sector(fat, fat_index, 1)) {
+		ret = -EIO;
+		goto out;
+	}
 	
 	if (!ret) {
 		fat[offset] = cpu_to_le32(entry);
-		set_sector(fat, fat_index, 1);
-		pr_debug("Set FAT[%u]  0x%x -> 0x%x.\n", clu, ret, fat[offset]);
+		ret = set_sector(fat, fat_index, 1);
+		pr_debug("Set FAT[%u]  0x%x.\n", clu, fat[offset]);
 	}
 
 out:
@@ -807,7 +824,12 @@ uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
 	for (allocated = 1; allocated < cluster_num; allocated++) {
 		if (exfat_get_fat(clu, &next_clu))
 			break;
-		get_cluster(*data + info.cluster_size * allocated, next_clu);
+		if (next_clu == EXFAT_LASTCLUSTER)
+			break;
+		if (next_clu < EXFAT_FIRST_CLUSTER || next_clu > info.cluster_count + 1)
+			break;
+		if (get_cluster(*data + info.cluster_size * allocated, next_clu))
+			break;
 		clu = next_clu;
 	}
 
@@ -838,6 +860,8 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 
 	/* NO_FAT_CHAIN */
 	if (f->flags & ALLOC_NOFATCHAIN) {
+		if ((uint64_t)clu + cluster_num - 1 > info.cluster_count + 1)
+			return 0;
 		if (!(tmp = realloc(*data, info.cluster_size * cluster_num)))
 			return 0;
 		*data = tmp;
@@ -848,30 +872,38 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 				break;
 			}
 		}
-		get_clusters(*data + info.cluster_size, clu + 1, cluster_num - 1);
+		if (get_clusters(*data + info.cluster_size, clu + 1, cluster_num - 1))
+			return 0;
 		return cluster_num;
 	}
 
-	init_bitmap(&b, info.cluster_count);
+	if (init_bitmap(&b, info.cluster_count))
+		return 0;
+	set_bitmap(&b, clu - EXFAT_FIRST_CLUSTER);
 
 	/* FAT_CHAIN */
 	for (allocated = 1; allocated < cluster_num; allocated++) { 
-		if (!exfat_get_fat(tmp_clu, &tmp_clu))
-			break;;
-		if (get_bitmap(&b, tmp_clu - EXFAT_FIRST_CLUSTER)) {
-			pr_err("Detected a loop in File (Cluster #%u).\n", clu);
+		if (exfat_get_fat(tmp_clu, &next_clu))
 			break;
-		}
-		set_bitmap(&b, tmp_clu - EXFAT_FIRST_CLUSTER);
-		if (tmp_clu == EXFAT_LASTCLUSTER) {
+		if (next_clu == EXFAT_LASTCLUSTER) {
 			pr_err("File size(%" PRIu64 ") and FAT chain size(%" PRIu64 ") are un-matched.\n",
 				f->datalen, allocated * info.cluster_size);
 			break;
 		}
-		if (exfat_load_bitmap(tmp_clu) != 1) {
-			pr_err("FAT and Allocation Bitmap are un-matched. Ignore #%u.\n", tmp_clu);
+		if (next_clu < EXFAT_FIRST_CLUSTER || next_clu > info.cluster_count + 1) {
+			pr_err("FAT entry points to invalid cluster #%u.\n", next_clu);
 			break;
 		}
+		if (get_bitmap(&b, next_clu - EXFAT_FIRST_CLUSTER)) {
+			pr_err("Detected a loop in File (Cluster #%u).\n", clu);
+			break;
+		}
+		if (exfat_load_bitmap(next_clu) != 1) {
+			pr_err("FAT and Allocation Bitmap are un-matched. Ignore #%u.\n", next_clu);
+			break;
+		}
+		set_bitmap(&b, next_clu - EXFAT_FIRST_CLUSTER);
+		tmp_clu = next_clu;
 	}
 
 	free_bitmap(&b);
@@ -883,7 +915,8 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 	for (i = 1; i < allocated; i++) {
 		if (exfat_get_fat(clu, &next_clu))
 			break;
-		get_cluster(*data + info.cluster_size * i, next_clu);
+		if (get_cluster(*data + info.cluster_size * i, next_clu))
+			break;
 		clu = next_clu;
 	}
 
@@ -912,7 +945,10 @@ uint32_t exfat_set_cluster(struct exfat_fileinfo *f, uint32_t clu, void *data)
 
 	/* FAT_CHAIN */
 	for (allocated = 0; allocated < cluster_num; allocated++) {
-		set_cluster(data + info.cluster_size * allocated, clu);
+		if (set_cluster(data + info.cluster_size * allocated, clu))
+			break;
+		if (exfat_get_fat(clu, &clu))
+			break;
 	}
 
 	return allocated;
@@ -1646,7 +1682,7 @@ out:
  */
 int exfat_traverse_directory(uint32_t clu)
 {
-	int i, j, name_len;
+	int i, j, name_len, name_entries;
 	uint16_t uniname[MAX_NAME_LENGTH] = {0};
 	size_t index = exfat_get_cache(clu);
 	struct exfat_fileinfo *f = (struct exfat_fileinfo *)info.root[index]->data;
@@ -1719,23 +1755,21 @@ int exfat_traverse_directory(uint32_t clu)
 					prev = DENTRY_UNUSED;
 					continue;
 				}
-				if (raw_length > MAX_NAME_LENGTH || raw_length > (raw_count - 1) * ENTRY_NAME_MAX) {
+				name_entries = ROUNDUP(raw_length, ENTRY_NAME_MAX);
+				if (raw_length == 0 || raw_length > MAX_NAME_LENGTH ||
+						raw_count != name_entries + 1) {
 					pr_warn("clu#%u index#%d: invalid file name length: %u\n",
 							clu, i, raw_length);
 					prev = DENTRY_UNUSED;
 					continue;
 				}
-				if (i + raw_count - 1 >= entries) {
-					raw_count = entries - i - 1;
-					raw_length = (raw_count - 1)  * ENTRY_NAME_MAX;
+				if (i + name_entries > entries) {
 					pr_warn("clu#%u index#%d: File name is too long. (Expect: < %d, Actual: %d)\n",
 							clu, i, raw_length, stream.dentry.stream.NameLength);
-				}
-				if (raw_count < 2) {
 					prev = DENTRY_UNUSED;
 					continue;
 				}
-				for (j = 0; j < raw_count - 1; j++) {
+				for (j = 0; j < name_entries; j++) {
 					name_len = MIN(ENTRY_NAME_MAX, raw_length - j * ENTRY_NAME_MAX);
 					memcpy(uniname + j * ENTRY_NAME_MAX,
 							(((struct exfat_dentry *)data)[i + j]).dentry.name.FileName,
@@ -1999,7 +2033,7 @@ uint32_t exfat_lookup(uint32_t clu, char *name)
 {
 	int index, i = 0, depth = 0;
 	bool found = false;
-	char *path[MAX_NAME_LENGTH] = {};
+	char *path[MAX_NAME_LENGTH + 1] = {};
 	char fullpath[PATHNAME_MAX + 1] = {};
 	char *saveptr = NULL;
 	node2_t *tmp;
@@ -2018,7 +2052,7 @@ uint32_t exfat_lookup(uint32_t clu, char *name)
 	strncpy(fullpath, name, PATHNAME_MAX);
 	path[depth] = strtok_r(fullpath, "/", &saveptr);
 	while (path[depth] != NULL) {
-		if (depth >= MAX_NAME_LENGTH) {
+		if (depth >= MAX_NAME_LENGTH - 1) {
 			pr_err("Pathname is too depth. (> %d)\n", MAX_NAME_LENGTH);
 			return 0;
 		}
