@@ -71,15 +71,15 @@ static void version(const char *command_name, const char *version, const char *a
 /**
  * validate_image - validate that @path is readable as an exFAT image
  * @path:            image file path
+ * @boot:            boot sector cache
  *
  * @return:          == 0 (Success)
  *                   <  0 (failed)
  */
-static int validate_image(const char *path)
+static int validate_image(const char *path, struct exfat_bootsec *boot)
 {
 	int ret;
 	bool initialized = false;
-	struct exfat_bootsec boot;
 
 	ret = exfat_init_info();
 	if (ret)
@@ -93,13 +93,13 @@ static int validate_image(const char *path)
 		goto out;
 	}
 
-	ret = exfat_load_bootsec(&boot);
+	ret = exfat_load_bootsec(boot);
 	if (ret) {
 		pr_err("%s: invalid Main Boot Sector\n", path);
 		goto out;
 	}
 
-	ret = exfat_store_info(&boot);
+	ret = exfat_store_info(boot);
 	if (ret) {
 		pr_err("%s: can't load exFAT volume information\n", path);
 		goto out;
@@ -123,6 +123,57 @@ out:
 	return ret;
 }
 
+static int compare_boot_field_u8(const char *name, uint8_t src, uint8_t dst)
+{
+	if (src == dst)
+		return 0;
+
+	pr_msg("Boot Sector: %s differs: image1=%u image2=%u\n", name, src, dst);
+	return 1;
+}
+
+static int compare_boot_field_u32(const char *name, uint32_t src, uint32_t dst)
+{
+	if (src == dst)
+		return 0;
+
+	pr_msg("Boot Sector: %s differs: image1=%u image2=%u\n", name, src, dst);
+	return 1;
+}
+
+/**
+ * compare_boot_layout - compare critical Main Boot Sector layout fields
+ * @src:                 source image boot sector
+ * @dst:                 destination image boot sector
+ *
+ * @return:              == 0 (same)
+ *                       != 0 (different)
+ */
+static int compare_boot_layout(struct exfat_bootsec *src, struct exfat_bootsec *dst)
+{
+	int diff = 0;
+
+	diff |= compare_boot_field_u8("BytesPerSectorShift",
+			src->BytesPerSectorShift, dst->BytesPerSectorShift);
+	diff |= compare_boot_field_u8("SectorsPerClusterShift",
+			src->SectorsPerClusterShift, dst->SectorsPerClusterShift);
+	diff |= compare_boot_field_u32("FatOffset",
+			le32_to_cpu(src->FatOffset), le32_to_cpu(dst->FatOffset));
+	diff |= compare_boot_field_u32("FatLength",
+			le32_to_cpu(src->FatLength), le32_to_cpu(dst->FatLength));
+	diff |= compare_boot_field_u32("ClusterHeapOffset",
+			le32_to_cpu(src->ClusterHeapOffset), le32_to_cpu(dst->ClusterHeapOffset));
+	diff |= compare_boot_field_u32("ClusterCount",
+			le32_to_cpu(src->ClusterCount), le32_to_cpu(dst->ClusterCount));
+	diff |= compare_boot_field_u32("FirstClusterOfRootDirectory",
+			le32_to_cpu(src->FirstClusterOfRootDirectory),
+			le32_to_cpu(dst->FirstClusterOfRootDirectory));
+	diff |= compare_boot_field_u8("NumberOfFats",
+			src->NumberOfFats, dst->NumberOfFats);
+
+	return diff;
+}
+
 /**
  * main   - main function
  * @argc:   argument count
@@ -133,6 +184,8 @@ int main(int argc, char *argv[])
 	int opt;
 	int longindex;
 	int ret = EXIT_FAILURE;
+	struct exfat_bootsec boot_src;
+	struct exfat_bootsec boot_dst;
 
 	while ((opt = getopt_long(argc, argv,
 					"",
@@ -160,9 +213,12 @@ int main(int argc, char *argv[])
 	}
 
 	output = stdout;
-	if (validate_image(argv[optind]))
+	if (validate_image(argv[optind], &boot_src))
 		goto out;
-	if (validate_image(argv[optind + 1]))
+	if (validate_image(argv[optind + 1], &boot_dst))
+		goto out;
+
+	if (compare_boot_layout(&boot_src, &boot_dst))
 		goto out;
 
 	ret = EXIT_SUCCESS;
