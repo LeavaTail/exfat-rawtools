@@ -24,6 +24,17 @@ unsigned int print_level = PRINT_WARNING;
 struct exfat_info info;
 struct exfat_info info_dist;
 
+struct diffexfat_image {
+	const char *path;
+	struct exfat_bootsec boot;
+	uint32_t alloc_offset;
+	uint64_t alloc_length;
+	uint32_t upcase_offset;
+	uint32_t upcase_size;
+	uint8_t vol_length;
+	uint16_t vol_label[11];
+};
+
 /**
  * Special Option(no short option)
  */
@@ -69,17 +80,20 @@ static void version(const char *command_name, const char *version, const char *a
 }
 
 /**
- * validate_image - validate that @path is readable as an exFAT image
- * @path:            image file path
- * @boot:            boot sector cache
+ * load_image - validate that @path is readable as an exFAT image
+ * @path:       image file path
+ * @image:      loaded image metadata
  *
  * @return:          == 0 (Success)
  *                   <  0 (failed)
  */
-static int validate_image(const char *path, struct exfat_bootsec *boot)
+static int load_image(const char *path, struct diffexfat_image *image)
 {
 	int ret;
 	bool initialized = false;
+
+	memset(image, 0, sizeof(*image));
+	image->path = path;
 
 	ret = exfat_init_info();
 	if (ret)
@@ -93,13 +107,13 @@ static int validate_image(const char *path, struct exfat_bootsec *boot)
 		goto out;
 	}
 
-	ret = exfat_load_bootsec(boot);
+	ret = exfat_load_bootsec(&image->boot);
 	if (ret) {
 		pr_err("%s: invalid Main Boot Sector\n", path);
 		goto out;
 	}
 
-	ret = exfat_store_info(boot);
+	ret = exfat_store_info(&image->boot);
 	if (ret) {
 		pr_err("%s: can't load exFAT volume information\n", path);
 		goto out;
@@ -116,6 +130,19 @@ static int validate_image(const char *path, struct exfat_bootsec *boot)
 		pr_err("%s: invalid Main Boot Checksum\n", path);
 		goto out;
 	}
+
+	ret = exfat_traverse_root_directory();
+	if (ret) {
+		pr_err("%s: can't load Root Directory special entries\n", path);
+		goto out;
+	}
+
+	image->alloc_offset = info.alloc_offset;
+	image->alloc_length = info.alloc_length;
+	image->upcase_offset = info.upcase_offset;
+	image->upcase_size = info.upcase_size;
+	image->vol_length = info.vol_length;
+	memcpy(image->vol_label, info.vol_label, sizeof(image->vol_label));
 
 out:
 	if (initialized)
@@ -166,6 +193,34 @@ static int compare_boot_field_u64(const char *name, uint64_t src, uint64_t dst)
 
 	pr_msg("Boot Sector: %s differs: image1=%" PRIu64 " image2=%" PRIu64 "\n",
 			name, src, dst);
+	return 1;
+}
+
+static int compare_special_field_u8(const char *entry, const char *name, uint8_t src, uint8_t dst)
+{
+	if (src == dst)
+		return 0;
+
+	pr_msg("%s: %s differs: image1=%u image2=%u\n", entry, name, src, dst);
+	return 1;
+}
+
+static int compare_special_field_u32(const char *entry, const char *name, uint32_t src, uint32_t dst)
+{
+	if (src == dst)
+		return 0;
+
+	pr_msg("%s: %s differs: image1=%u image2=%u\n", entry, name, src, dst);
+	return 1;
+}
+
+static int compare_special_field_u64(const char *entry, const char *name, uint64_t src, uint64_t dst)
+{
+	if (src == dst)
+		return 0;
+
+	pr_msg("%s: %s differs: image1=%" PRIu64 " image2=%" PRIu64 "\n",
+			entry, name, src, dst);
 	return 1;
 }
 
@@ -231,6 +286,36 @@ static int compare_boot_metadata(struct exfat_bootsec *src, struct exfat_bootsec
 }
 
 /**
+ * compare_special_entries - compare Root Directory special entry metadata
+ * @src:                    source image metadata
+ * @dst:                    destination image metadata
+ *
+ * @return:                 == 0 (same)
+ *                          != 0 (different)
+ */
+static int compare_special_entries(struct diffexfat_image *src, struct diffexfat_image *dst)
+{
+	int diff = 0;
+
+	diff |= compare_special_field_u32("Allocation Bitmap", "FirstCluster",
+			src->alloc_offset, dst->alloc_offset);
+	diff |= compare_special_field_u64("Allocation Bitmap", "DataLength",
+			src->alloc_length, dst->alloc_length);
+	diff |= compare_special_field_u32("Up-case Table", "FirstCluster",
+			src->upcase_offset, dst->upcase_offset);
+	diff |= compare_special_field_u32("Up-case Table", "DataLength",
+			src->upcase_size, dst->upcase_size);
+	diff |= compare_special_field_u8("Volume Label", "CharacterCount",
+			src->vol_length, dst->vol_length);
+
+	if (!memcmp(src->vol_label, dst->vol_label, sizeof(src->vol_label)))
+		return diff;
+
+	pr_msg("Volume Label: VolumeLabel differs\n");
+	return 1;
+}
+
+/**
  * main   - main function
  * @argc:   argument count
  * @argv:   argument vector
@@ -240,8 +325,8 @@ int main(int argc, char *argv[])
 	int opt;
 	int longindex;
 	int ret = EXIT_FAILURE;
-	struct exfat_bootsec boot_src;
-	struct exfat_bootsec boot_dst;
+	struct diffexfat_image image_src;
+	struct diffexfat_image image_dst;
 
 	while ((opt = getopt_long(argc, argv,
 					"",
@@ -269,14 +354,16 @@ int main(int argc, char *argv[])
 	}
 
 	output = stdout;
-	if (validate_image(argv[optind], &boot_src))
+	if (load_image(argv[optind], &image_src))
 		goto out;
-	if (validate_image(argv[optind + 1], &boot_dst))
+	if (load_image(argv[optind + 1], &image_dst))
 		goto out;
 
-	if (compare_boot_layout(&boot_src, &boot_dst))
+	if (compare_boot_layout(&image_src.boot, &image_dst.boot))
 		goto out;
-	if (compare_boot_metadata(&boot_src, &boot_dst))
+	if (compare_boot_metadata(&image_src.boot, &image_dst.boot))
+		goto out;
+	if (compare_special_entries(&image_src, &image_dst))
 		goto out;
 
 	ret = EXIT_SUCCESS;
