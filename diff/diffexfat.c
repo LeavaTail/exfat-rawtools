@@ -132,12 +132,40 @@ static int compare_boot_field_u8(const char *name, uint8_t src, uint8_t dst)
 	return 1;
 }
 
+static int compare_boot_field_u16_hex(const char *name, uint16_t src, uint16_t dst)
+{
+	if (src == dst)
+		return 0;
+
+	pr_msg("Boot Sector: %s differs: image1=0x%04x image2=0x%04x\n", name, src, dst);
+	return 1;
+}
+
 static int compare_boot_field_u32(const char *name, uint32_t src, uint32_t dst)
 {
 	if (src == dst)
 		return 0;
 
 	pr_msg("Boot Sector: %s differs: image1=%u image2=%u\n", name, src, dst);
+	return 1;
+}
+
+static int compare_boot_field_u32_hex(const char *name, uint32_t src, uint32_t dst)
+{
+	if (src == dst)
+		return 0;
+
+	pr_msg("Boot Sector: %s differs: image1=0x%08x image2=0x%08x\n", name, src, dst);
+	return 1;
+}
+
+static int compare_boot_field_u64(const char *name, uint64_t src, uint64_t dst)
+{
+	if (src == dst)
+		return 0;
+
+	pr_msg("Boot Sector: %s differs: image1=%" PRIu64 " image2=%" PRIu64 "\n",
+			name, src, dst);
 	return 1;
 }
 
@@ -157,6 +185,8 @@ static int compare_boot_layout(struct exfat_bootsec *src, struct exfat_bootsec *
 			src->BytesPerSectorShift, dst->BytesPerSectorShift);
 	diff |= compare_boot_field_u8("SectorsPerClusterShift",
 			src->SectorsPerClusterShift, dst->SectorsPerClusterShift);
+	diff |= compare_boot_field_u64("VolumeLength",
+			le64_to_cpu(src->VolumeLength), le64_to_cpu(dst->VolumeLength));
 	diff |= compare_boot_field_u32("FatOffset",
 			le32_to_cpu(src->FatOffset), le32_to_cpu(dst->FatOffset));
 	diff |= compare_boot_field_u32("FatLength",
@@ -170,6 +200,32 @@ static int compare_boot_layout(struct exfat_bootsec *src, struct exfat_bootsec *
 			le32_to_cpu(dst->FirstClusterOfRootDirectory));
 	diff |= compare_boot_field_u8("NumberOfFats",
 			src->NumberOfFats, dst->NumberOfFats);
+
+	return diff;
+}
+
+/**
+ * compare_boot_metadata - compare non-layout Main Boot Sector fields
+ * @src:                   source image boot sector
+ * @dst:                   destination image boot sector
+ *
+ * @return:                == 0 (same)
+ *                         != 0 (different)
+ */
+static int compare_boot_metadata(struct exfat_bootsec *src, struct exfat_bootsec *dst)
+{
+	int diff = 0;
+
+	diff |= compare_boot_field_u64("PartitionOffset",
+			le64_to_cpu(src->PartitionOffset), le64_to_cpu(dst->PartitionOffset));
+	diff |= compare_boot_field_u32_hex("VolumeSerialNumber",
+			le32_to_cpu(src->VolumeSerialNumber), le32_to_cpu(dst->VolumeSerialNumber));
+	diff |= compare_boot_field_u16_hex("FileSystemRevision",
+			le16_to_cpu(src->FileSystemRevision), le16_to_cpu(dst->FileSystemRevision));
+	diff |= compare_boot_field_u16_hex("VolumeFlags",
+			le16_to_cpu(src->VolumeFlags), le16_to_cpu(dst->VolumeFlags));
+	diff |= compare_boot_field_u8("DriveSelect", src->DriveSelect, dst->DriveSelect);
+	diff |= compare_boot_field_u8("PercentInUse", src->PercentInUse, dst->PercentInUse);
 
 	return diff;
 }
@@ -219,6 +275,8 @@ int main(int argc, char *argv[])
 		goto out;
 
 	if (compare_boot_layout(&boot_src, &boot_dst))
+		goto out;
+	if (compare_boot_metadata(&boot_src, &boot_dst))
 		goto out;
 
 	ret = EXIT_SUCCESS;
