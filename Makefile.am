@@ -19,6 +19,7 @@ TESTS = tests/00_init.sh \
         tests/03_test_lsexfat.sh \
         tests/04_test_catexfat.sh \
         tests/05_test_statexfat.sh \
+        tests/06_test_diffexfat.sh \
         tests/10_test_huge.sh
 
 EXTRA_DIST = common
