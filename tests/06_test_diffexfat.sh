@@ -9,11 +9,13 @@ BITMAP_IMAGE=diff_bitmap.img
 BITMAP_LOG=diff_bitmap.log
 UPCASE_IMAGE=diff_upcase.img
 UPCASE_LOG=diff_upcase.log
+LABEL_IMAGE=diff_label.img
+LABEL_LOG=diff_label.log
 RET=0
 
 set -eu -o pipefail
 trap 'echo "ERROR: l.$LINENO, exit status = $?" >&2; exit 1' ERR
-trap 'rm -f ${DIFF_IMAGE} ${DIFF_LOG} ${BITMAP_IMAGE} ${BITMAP_LOG} ${UPCASE_IMAGE} ${UPCASE_LOG}' EXIT
+trap 'rm -f ${DIFF_IMAGE} ${DIFF_LOG} ${BITMAP_IMAGE} ${BITMAP_LOG} ${UPCASE_IMAGE} ${UPCASE_LOG} ${LABEL_IMAGE} ${LABEL_LOG}' EXIT
 
 ### main function ###
 ${PROG} ${IMAGE1} ${IMAGE2}
@@ -55,6 +57,18 @@ if [ $RET -eq 0 ]; then
 	exit 1
 fi
 grep "Up-case Table: entry #0x0000 differs: image1=0x0000 image2=0x0001" ${UPCASE_LOG}
+RET=0
+
+# Volume Label is the first Root Directory entry in the sample image.
+cp ${IMAGE1} ${LABEL_IMAGE}
+printf '\001X\000' | dd of=${LABEL_IMAGE} bs=1 seek=2109441 count=3 conv=notrunc status=none
+${PROG} ${IMAGE1} ${LABEL_IMAGE} > ${LABEL_LOG} || RET=$?
+if [ $RET -eq 0 ]; then
+	echo "ERROR: Volume Label difference may be undetected"
+	exit 1
+fi
+grep "Volume Label: CharacterCount differs: image1=0 image2=1" ${LABEL_LOG}
+grep "Volume Label: VolumeLabel differs" ${LABEL_LOG}
 RET=0
 
 ### Error path ###
