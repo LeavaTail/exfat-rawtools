@@ -31,6 +31,7 @@ struct diffexfat_image {
 	uint8_t *alloc_table;
 	uint32_t upcase_offset;
 	uint32_t upcase_size;
+	uint16_t *upcase_table;
 	uint8_t vol_length;
 	uint16_t vol_label[11];
 };
@@ -86,7 +87,9 @@ static void version(const char *command_name, const char *version, const char *a
 static void clean_image(struct diffexfat_image *image)
 {
 	free(image->alloc_table);
+	free(image->upcase_table);
 	image->alloc_table = NULL;
+	image->upcase_table = NULL;
 }
 
 /**
@@ -161,6 +164,12 @@ static int load_image(const char *path, struct diffexfat_image *image)
 	memcpy(image->alloc_table, info.alloc_table, image->alloc_length);
 	image->upcase_offset = info.upcase_offset;
 	image->upcase_size = info.upcase_size;
+	image->upcase_table = malloc(image->upcase_size);
+	if (!image->upcase_table) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	memcpy(image->upcase_table, info.upcase_table, image->upcase_size);
 	image->vol_length = info.vol_length;
 	memcpy(image->vol_label, info.vol_label, sizeof(image->vol_label));
 
@@ -372,6 +381,37 @@ static int compare_allocation_bitmap(struct diffexfat_image *src, struct diffexf
 }
 
 /**
+ * compare_upcase_table - compare Up-case Table contents
+ * @src:                 source image metadata
+ * @dst:                 destination image metadata
+ *
+ * @return:              == 0 (same)
+ *                       != 0 (different)
+ */
+static int compare_upcase_table(struct diffexfat_image *src, struct diffexfat_image *dst)
+{
+	uint32_t index;
+	int diff = 0;
+
+	if (src->upcase_size != dst->upcase_size)
+		return 1;
+
+	for (index = 0; index < src->upcase_size / sizeof(uint16_t); index++) {
+		uint16_t src_value = le16_to_cpu(src->upcase_table[index]);
+		uint16_t dst_value = le16_to_cpu(dst->upcase_table[index]);
+
+		if (src_value == dst_value)
+			continue;
+
+		pr_msg("Up-case Table: entry #0x%04x differs: image1=0x%04x image2=0x%04x\n",
+				index, src_value, dst_value);
+		diff = 1;
+	}
+
+	return diff;
+}
+
+/**
  * main   - main function
  * @argc:   argument count
  * @argv:   argument vector
@@ -422,6 +462,8 @@ int main(int argc, char *argv[])
 	if (compare_special_entries(&image_src, &image_dst))
 		goto out;
 	if (compare_allocation_bitmap(&image_src, &image_dst))
+		goto out;
+	if (compare_upcase_table(&image_src, &image_dst))
 		goto out;
 
 	ret = EXIT_SUCCESS;

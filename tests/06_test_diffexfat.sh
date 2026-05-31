@@ -7,11 +7,13 @@ DIFF_IMAGE=diff_percent.img
 DIFF_LOG=diff_percent.log
 BITMAP_IMAGE=diff_bitmap.img
 BITMAP_LOG=diff_bitmap.log
+UPCASE_IMAGE=diff_upcase.img
+UPCASE_LOG=diff_upcase.log
 RET=0
 
 set -eu -o pipefail
 trap 'echo "ERROR: l.$LINENO, exit status = $?" >&2; exit 1' ERR
-trap 'rm -f ${DIFF_IMAGE} ${DIFF_LOG} ${BITMAP_IMAGE} ${BITMAP_LOG}' EXIT
+trap 'rm -f ${DIFF_IMAGE} ${DIFF_LOG} ${BITMAP_IMAGE} ${BITMAP_LOG} ${UPCASE_IMAGE} ${UPCASE_LOG}' EXIT
 
 ### main function ###
 ${PROG} ${IMAGE1} ${IMAGE2}
@@ -42,6 +44,17 @@ if [ $RET -eq 0 ]; then
 	exit 1
 fi
 grep "Allocation Bitmap: cluster #22 differs: image1=free image2=allocated" ${BITMAP_LOG}
+RET=0
+
+# Up-case Table starts at cluster #3 in the sample image.
+cp ${IMAGE1} ${UPCASE_IMAGE}
+printf '\001' | dd of=${UPCASE_IMAGE} bs=1 seek=2101248 count=1 conv=notrunc status=none
+${PROG} ${IMAGE1} ${UPCASE_IMAGE} > ${UPCASE_LOG} || RET=$?
+if [ $RET -eq 0 ]; then
+	echo "ERROR: Up-case Table difference may be undetected"
+	exit 1
+fi
+grep "Up-case Table: entry #0x0000 differs: image1=0x0000 image2=0x0001" ${UPCASE_LOG}
 RET=0
 
 ### Error path ###
