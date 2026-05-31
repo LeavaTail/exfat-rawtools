@@ -22,13 +22,13 @@
 FILE *output;
 unsigned int print_level = PRINT_WARNING;
 struct exfat_info info;
-struct exfat_info info_dist;
 
 struct diffexfat_image {
 	const char *path;
 	struct exfat_bootsec boot;
 	uint32_t alloc_offset;
 	uint64_t alloc_length;
+	uint8_t *alloc_table;
 	uint32_t upcase_offset;
 	uint32_t upcase_size;
 	uint8_t vol_length;
@@ -77,6 +77,16 @@ static void version(const char *command_name, const char *version, const char *a
 	fprintf(stdout, "%s %s\n", command_name, version);
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Written by %s.\n", author);
+}
+
+/**
+ * clean_image - clean image metadata snapshot
+ * @image:       loaded image metadata
+ */
+static void clean_image(struct diffexfat_image *image)
+{
+	free(image->alloc_table);
+	image->alloc_table = NULL;
 }
 
 /**
@@ -139,6 +149,16 @@ static int load_image(const char *path, struct diffexfat_image *image)
 
 	image->alloc_offset = info.alloc_offset;
 	image->alloc_length = info.alloc_length;
+	if (image->alloc_length > SIZE_MAX) {
+		ret = -EOVERFLOW;
+		goto out;
+	}
+	image->alloc_table = malloc(image->alloc_length);
+	if (!image->alloc_table) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	memcpy(image->alloc_table, info.alloc_table, image->alloc_length);
 	image->upcase_offset = info.upcase_offset;
 	image->upcase_size = info.upcase_size;
 	image->vol_length = info.vol_length;
@@ -325,8 +345,8 @@ int main(int argc, char *argv[])
 	int opt;
 	int longindex;
 	int ret = EXIT_FAILURE;
-	struct diffexfat_image image_src;
-	struct diffexfat_image image_dst;
+	struct diffexfat_image image_src = {0};
+	struct diffexfat_image image_dst = {0};
 
 	while ((opt = getopt_long(argc, argv,
 					"",
@@ -368,5 +388,7 @@ int main(int argc, char *argv[])
 
 	ret = EXIT_SUCCESS;
 out:
+	clean_image(&image_src);
+	clean_image(&image_dst);
 	return ret;
 }
