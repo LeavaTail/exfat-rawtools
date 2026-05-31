@@ -420,6 +420,7 @@ int main(int argc, char *argv[])
 {
 	int opt;
 	int longindex;
+	int diff = 0;
 	int ret = EXIT_FAILURE;
 	struct diffexfat_image image_src = {0};
 	struct diffexfat_image image_dst = {0};
@@ -457,16 +458,13 @@ int main(int argc, char *argv[])
 
 	if (compare_boot_layout(&image_src.boot, &image_dst.boot))
 		goto out;
-	if (compare_boot_metadata(&image_src.boot, &image_dst.boot))
-		goto out;
-	if (compare_special_entries(&image_src, &image_dst))
-		goto out;
-	if (compare_allocation_bitmap(&image_src, &image_dst))
-		goto out;
-	if (compare_upcase_table(&image_src, &image_dst))
-		goto out;
 
-	ret = EXIT_SUCCESS;
+	diff |= compare_boot_metadata(&image_src.boot, &image_dst.boot);
+	diff |= compare_special_entries(&image_src, &image_dst);
+	diff |= compare_allocation_bitmap(&image_src, &image_dst);
+	diff |= compare_upcase_table(&image_src, &image_dst);
+
+	ret = diff ? EXIT_FAILURE : EXIT_SUCCESS;
 out:
 	clean_image(&image_src);
 	clean_image(&image_dst);
