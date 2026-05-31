@@ -11,10 +11,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <ctype.h>
-#include <mntent.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #include "diffexfat.h"
 #include "exfat.h"
@@ -23,14 +19,16 @@ FILE *output;
 unsigned int print_level = PRINT_WARNING;
 struct exfat_info info;
 
+struct diffexfat_table {
+	uint32_t offset;
+	uint64_t length;
+	uint8_t *data;
+};
+
 struct diffexfat_image {
 	struct exfat_bootsec boot;
-	uint32_t alloc_offset;
-	uint64_t alloc_length;
-	uint8_t *alloc_table;
-	uint32_t upcase_offset;
-	uint32_t upcase_size;
-	uint8_t *upcase_table;
+	struct diffexfat_table bitmap;
+	struct diffexfat_table upcase;
 	uint8_t vol_length;
 	uint16_t vol_label[11];
 };
@@ -85,10 +83,10 @@ static void version(const char *command_name, const char *version, const char *a
  */
 static void clean_image(struct diffexfat_image *image)
 {
-	free(image->alloc_table);
-	free(image->upcase_table);
-	image->alloc_table = NULL;
-	image->upcase_table = NULL;
+	free(image->bitmap.data);
+	free(image->upcase.data);
+	image->bitmap.data = NULL;
+	image->upcase.data = NULL;
 }
 
 static int copy_table(uint8_t **dst, const void *src, uint64_t size)
@@ -161,16 +159,16 @@ static int load_image(const char *path, struct diffexfat_image *image)
 		goto out;
 	}
 
-	image->alloc_offset = info.alloc_offset;
-	image->alloc_length = info.alloc_length;
-	ret = copy_table(&image->alloc_table, info.alloc_table, image->alloc_length);
+	image->bitmap.offset = info.alloc_offset;
+	image->bitmap.length = info.alloc_length;
+	ret = copy_table(&image->bitmap.data, info.alloc_table, image->bitmap.length);
 	if (ret) {
 		pr_err("%s: can't snapshot Allocation Bitmap\n", path);
 		goto out;
 	}
-	image->upcase_offset = info.upcase_offset;
-	image->upcase_size = info.upcase_size;
-	ret = copy_table(&image->upcase_table, info.upcase_table, image->upcase_size);
+	image->upcase.offset = info.upcase_offset;
+	image->upcase.length = info.upcase_size;
+	ret = copy_table(&image->upcase.data, info.upcase_table, image->upcase.length);
 	if (ret) {
 		pr_err("%s: can't snapshot Up-case Table\n", path);
 		goto out;
@@ -266,7 +264,7 @@ static int compare_special_field_u64(const char *entry, const char *name, uint64
  * @return:              == 0 (same)
  *                       != 0 (different)
  */
-static int compare_boot_layout(struct exfat_bootsec *src, struct exfat_bootsec *dst)
+static int compare_boot_layout(const struct exfat_bootsec *src, const struct exfat_bootsec *dst)
 {
 	int diff = 0;
 
@@ -301,7 +299,7 @@ static int compare_boot_layout(struct exfat_bootsec *src, struct exfat_bootsec *
  * @return:                == 0 (same)
  *                         != 0 (different)
  */
-static int compare_boot_metadata(struct exfat_bootsec *src, struct exfat_bootsec *dst)
+static int compare_boot_metadata(const struct exfat_bootsec *src, const struct exfat_bootsec *dst)
 {
 	int diff = 0;
 
@@ -327,18 +325,18 @@ static int compare_boot_metadata(struct exfat_bootsec *src, struct exfat_bootsec
  * @return:                 == 0 (same)
  *                          != 0 (different)
  */
-static int compare_special_entries(struct diffexfat_image *src, struct diffexfat_image *dst)
+static int compare_special_entries(const struct diffexfat_image *src, const struct diffexfat_image *dst)
 {
 	int diff = 0;
 
 	diff |= compare_special_field_u32("Allocation Bitmap", "FirstCluster",
-			src->alloc_offset, dst->alloc_offset);
+			src->bitmap.offset, dst->bitmap.offset);
 	diff |= compare_special_field_u64("Allocation Bitmap", "DataLength",
-			src->alloc_length, dst->alloc_length);
+			src->bitmap.length, dst->bitmap.length);
 	diff |= compare_special_field_u32("Up-case Table", "FirstCluster",
-			src->upcase_offset, dst->upcase_offset);
+			src->upcase.offset, dst->upcase.offset);
 	diff |= compare_special_field_u32("Up-case Table", "DataLength",
-			src->upcase_size, dst->upcase_size);
+			src->upcase.length, dst->upcase.length);
 	diff |= compare_special_field_u8("Volume Label", "CharacterCount",
 			src->vol_length, dst->vol_length);
 
@@ -357,26 +355,26 @@ static int compare_special_entries(struct diffexfat_image *src, struct diffexfat
  * @return:                    == 0 (same)
  *                             != 0 (different)
  */
-static int compare_allocation_bitmap(struct diffexfat_image *src, struct diffexfat_image *dst)
+static int compare_allocation_bitmap(const struct diffexfat_image *src, const struct diffexfat_image *dst)
 {
 	uint32_t index;
 	uint32_t cluster_count = le32_to_cpu(src->boot.ClusterCount);
 	uint64_t bitmap_length = ROUNDUP((uint64_t)cluster_count, CHAR_BIT);
 	int diff = 0;
 
-	if (src->alloc_length != dst->alloc_length)
+	if (src->bitmap.length != dst->bitmap.length)
 		return 1;
-	if (src->alloc_length < bitmap_length) {
+	if (src->bitmap.length < bitmap_length) {
 		pr_err("Allocation Bitmap: DataLength is too small: %" PRIu64 " < %" PRIu64 "\n",
-			src->alloc_length, bitmap_length);
+			src->bitmap.length, bitmap_length);
 		return 1;
 	}
 
 	for (index = 0; index < cluster_count; index++) {
 		uint32_t clu = EXFAT_FIRST_CLUSTER + index;
 		uint8_t mask = 1 << (index % CHAR_BIT);
-		bool src_allocated = src->alloc_table[index / CHAR_BIT] & mask;
-		bool dst_allocated = dst->alloc_table[index / CHAR_BIT] & mask;
+		bool src_allocated = src->bitmap.data[index / CHAR_BIT] & mask;
+		bool dst_allocated = dst->bitmap.data[index / CHAR_BIT] & mask;
 
 		if (src_allocated == dst_allocated)
 			continue;
@@ -399,21 +397,23 @@ static int compare_allocation_bitmap(struct diffexfat_image *src, struct diffexf
  * @return:              == 0 (same)
  *                       != 0 (different)
  */
-static int compare_upcase_table(struct diffexfat_image *src, struct diffexfat_image *dst)
+static int compare_upcase_table(const struct diffexfat_image *src, const struct diffexfat_image *dst)
 {
 	uint32_t index;
+	const uint16_t *src_table = (const uint16_t *)src->upcase.data;
+	const uint16_t *dst_table = (const uint16_t *)dst->upcase.data;
 	int diff = 0;
 
-	if (src->upcase_size != dst->upcase_size)
+	if (src->upcase.length != dst->upcase.length)
 		return 1;
-	if (src->upcase_size % sizeof(uint16_t)) {
-		pr_err("Up-case Table: DataLength is not aligned: %u\n", src->upcase_size);
+	if (src->upcase.length % sizeof(uint16_t)) {
+		pr_err("Up-case Table: DataLength is not aligned: %" PRIu64 "\n", src->upcase.length);
 		return 1;
 	}
 
-	for (index = 0; index < src->upcase_size / sizeof(uint16_t); index++) {
-		uint16_t src_value = le16_to_cpu(((uint16_t *)src->upcase_table)[index]);
-		uint16_t dst_value = le16_to_cpu(((uint16_t *)dst->upcase_table)[index]);
+	for (index = 0; index < src->upcase.length / sizeof(uint16_t); index++) {
+		uint16_t src_value = le16_to_cpu(src_table[index]);
+		uint16_t dst_value = le16_to_cpu(dst_table[index]);
 
 		if (src_value == dst_value)
 			continue;
