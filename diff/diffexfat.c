@@ -24,14 +24,13 @@ unsigned int print_level = PRINT_WARNING;
 struct exfat_info info;
 
 struct diffexfat_image {
-	const char *path;
 	struct exfat_bootsec boot;
 	uint32_t alloc_offset;
 	uint64_t alloc_length;
 	uint8_t *alloc_table;
 	uint32_t upcase_offset;
 	uint32_t upcase_size;
-	uint16_t *upcase_table;
+	uint8_t *upcase_table;
 	uint8_t vol_length;
 	uint16_t vol_label[11];
 };
@@ -92,6 +91,19 @@ static void clean_image(struct diffexfat_image *image)
 	image->upcase_table = NULL;
 }
 
+static int copy_table(uint8_t **dst, const void *src, uint64_t size)
+{
+	if (!src || size == 0 || size > SIZE_MAX)
+		return -EINVAL;
+
+	*dst = malloc(size);
+	if (!*dst)
+		return -ENOMEM;
+
+	memcpy(*dst, src, size);
+	return 0;
+}
+
 /**
  * load_image - validate that @path is readable as an exFAT image
  * @path:       image file path
@@ -106,7 +118,6 @@ static int load_image(const char *path, struct diffexfat_image *image)
 	bool initialized = false;
 
 	memset(image, 0, sizeof(*image));
-	image->path = path;
 
 	ret = exfat_init_info();
 	if (ret)
@@ -152,24 +163,18 @@ static int load_image(const char *path, struct diffexfat_image *image)
 
 	image->alloc_offset = info.alloc_offset;
 	image->alloc_length = info.alloc_length;
-	if (image->alloc_length > SIZE_MAX) {
-		ret = -EOVERFLOW;
+	ret = copy_table(&image->alloc_table, info.alloc_table, image->alloc_length);
+	if (ret) {
+		pr_err("%s: can't snapshot Allocation Bitmap\n", path);
 		goto out;
 	}
-	image->alloc_table = malloc(image->alloc_length);
-	if (!image->alloc_table) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	memcpy(image->alloc_table, info.alloc_table, image->alloc_length);
 	image->upcase_offset = info.upcase_offset;
 	image->upcase_size = info.upcase_size;
-	image->upcase_table = malloc(image->upcase_size);
-	if (!image->upcase_table) {
-		ret = -ENOMEM;
+	ret = copy_table(&image->upcase_table, info.upcase_table, image->upcase_size);
+	if (ret) {
+		pr_err("%s: can't snapshot Up-case Table\n", path);
 		goto out;
 	}
-	memcpy(image->upcase_table, info.upcase_table, image->upcase_size);
 	image->vol_length = info.vol_length;
 	memcpy(image->vol_label, info.vol_label, sizeof(image->vol_label));
 
@@ -354,15 +359,21 @@ static int compare_special_entries(struct diffexfat_image *src, struct diffexfat
  */
 static int compare_allocation_bitmap(struct diffexfat_image *src, struct diffexfat_image *dst)
 {
-	uint32_t clu;
+	uint32_t index;
 	uint32_t cluster_count = le32_to_cpu(src->boot.ClusterCount);
+	uint64_t bitmap_length = ROUNDUP((uint64_t)cluster_count, CHAR_BIT);
 	int diff = 0;
 
 	if (src->alloc_length != dst->alloc_length)
 		return 1;
+	if (src->alloc_length < bitmap_length) {
+		pr_err("Allocation Bitmap: DataLength is too small: %" PRIu64 " < %" PRIu64 "\n",
+			src->alloc_length, bitmap_length);
+		return 1;
+	}
 
-	for (clu = EXFAT_FIRST_CLUSTER; clu < EXFAT_FIRST_CLUSTER + cluster_count; clu++) {
-		uint32_t index = clu - EXFAT_FIRST_CLUSTER;
+	for (index = 0; index < cluster_count; index++) {
+		uint32_t clu = EXFAT_FIRST_CLUSTER + index;
 		uint8_t mask = 1 << (index % CHAR_BIT);
 		bool src_allocated = src->alloc_table[index / CHAR_BIT] & mask;
 		bool dst_allocated = dst->alloc_table[index / CHAR_BIT] & mask;
@@ -395,10 +406,14 @@ static int compare_upcase_table(struct diffexfat_image *src, struct diffexfat_im
 
 	if (src->upcase_size != dst->upcase_size)
 		return 1;
+	if (src->upcase_size % sizeof(uint16_t)) {
+		pr_err("Up-case Table: DataLength is not aligned: %u\n", src->upcase_size);
+		return 1;
+	}
 
 	for (index = 0; index < src->upcase_size / sizeof(uint16_t); index++) {
-		uint16_t src_value = le16_to_cpu(src->upcase_table[index]);
-		uint16_t dst_value = le16_to_cpu(dst->upcase_table[index]);
+		uint16_t src_value = le16_to_cpu(((uint16_t *)src->upcase_table)[index]);
+		uint16_t dst_value = le16_to_cpu(((uint16_t *)dst->upcase_table)[index]);
 
 		if (src_value == dst_value)
 			continue;
