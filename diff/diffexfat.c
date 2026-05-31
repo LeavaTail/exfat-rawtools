@@ -336,6 +336,42 @@ static int compare_special_entries(struct diffexfat_image *src, struct diffexfat
 }
 
 /**
+ * compare_allocation_bitmap - compare Allocation Bitmap contents
+ * @src:                       source image metadata
+ * @dst:                       destination image metadata
+ *
+ * @return:                    == 0 (same)
+ *                             != 0 (different)
+ */
+static int compare_allocation_bitmap(struct diffexfat_image *src, struct diffexfat_image *dst)
+{
+	uint32_t clu;
+	uint32_t cluster_count = le32_to_cpu(src->boot.ClusterCount);
+	int diff = 0;
+
+	if (src->alloc_length != dst->alloc_length)
+		return 1;
+
+	for (clu = EXFAT_FIRST_CLUSTER; clu < EXFAT_FIRST_CLUSTER + cluster_count; clu++) {
+		uint32_t index = clu - EXFAT_FIRST_CLUSTER;
+		uint8_t mask = 1 << (index % CHAR_BIT);
+		bool src_allocated = src->alloc_table[index / CHAR_BIT] & mask;
+		bool dst_allocated = dst->alloc_table[index / CHAR_BIT] & mask;
+
+		if (src_allocated == dst_allocated)
+			continue;
+
+		pr_msg("Allocation Bitmap: cluster #%u differs: image1=%s image2=%s\n",
+				clu,
+				src_allocated ? "allocated" : "free",
+				dst_allocated ? "allocated" : "free");
+		diff = 1;
+	}
+
+	return diff;
+}
+
+/**
  * main   - main function
  * @argc:   argument count
  * @argv:   argument vector
@@ -384,6 +420,8 @@ int main(int argc, char *argv[])
 	if (compare_boot_metadata(&image_src.boot, &image_dst.boot))
 		goto out;
 	if (compare_special_entries(&image_src, &image_dst))
+		goto out;
+	if (compare_allocation_bitmap(&image_src, &image_dst))
 		goto out;
 
 	ret = EXIT_SUCCESS;
