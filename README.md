@@ -28,6 +28,7 @@ The following functions have been implemented:
 - `lsexfat`: List directory contents
 - `catexfat`: Display file contents
 - `statexfat`: Display file or directory status
+- `diffexfat`: Compare two exFAT filesystem images
 
 ### checkexfat
 
@@ -121,6 +122,19 @@ Flags   : FatChain/ AllocationPossible
 Access  : 2021-05-05 01:52:36
 Modify  : 2021-05-05 01:53:53
 Create  : 2021-05-05 01:52:36
+```
+
+### diffexfat
+
+diffexfat compares two exFAT filesystem images without mounting them.
+It reports differences in the Main Boot Sector and Root Directory special entries.
+
+```
+$ diffexfat exfat.img modified.img
+Allocation Bitmap: cluster #22 differs: image1=free image2=allocated
+Up-case Table: entry #0x0000 differs: image1=0x0000 image2=0x0001
+Volume Label: CharacterCount differs: image1=0 image2=1
+Volume Label: VolumeLabel differs
 ```
 
 ## Requirements
