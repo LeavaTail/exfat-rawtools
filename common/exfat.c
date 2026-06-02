@@ -838,7 +838,7 @@ uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
 		clu = next_clu;
 	}
 
-	return allocated;
+	return allocated == cluster_num ? allocated : 0;
 }
 
 /**
