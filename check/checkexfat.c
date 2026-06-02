@@ -81,6 +81,11 @@ static int exfat_set_bitmap(uint8_t *b, uint32_t clu)
 	int offset, byte;
 	uint8_t mask = 0x01;
 
+	if (clu < EXFAT_FIRST_CLUSTER || clu > info.cluster_count + 1) {
+		pr_warn("Cluster#%u is invalid.\n", clu);
+		return -EINVAL;
+	}
+
 	byte = (clu - EXFAT_FIRST_CLUSTER) / CHAR_BIT;
 	offset = (clu - EXFAT_FIRST_CLUSTER) % CHAR_BIT;
 	mask <<= offset;
@@ -113,6 +118,8 @@ static int exfat_set_reserved_bitmap(uint8_t *b, uint32_t clu, uint64_t len)
 
 	while (clu != 0 && clu != EXFAT_LASTCLUSTER) {
 		ret = exfat_set_bitmap(b, clu);
+		if (ret)
+			break;
 		clu = exfat_next_cluster(&f, clu);
 	}
 	return ret;
@@ -226,8 +233,10 @@ int main(int argc, char *argv[])
 			/* File */
 			for (clu = tmp->index;
 					clu != 0 && clu != EXFAT_LASTCLUSTER;
-					clu = exfat_next_cluster(f, clu))
-				exfat_set_bitmap(alloc_table, clu);
+					clu = exfat_next_cluster(f, clu)) {
+				if (exfat_set_bitmap(alloc_table, clu))
+					break;
+			}
 		}
 	}
 	exfat_check_bitmap(alloc_table);
