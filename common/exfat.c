@@ -1502,12 +1502,18 @@ int exfat_load_bitmap_cluster(struct exfat_dentry d)
 {
 	uint32_t fstclu;
 	uint64_t datalen;
+	uint64_t min_length;
 
 	if (info.alloc_offset)
 		return 1;
 
 	fstclu = le32_to_cpu(d.dentry.bitmap.FirstCluster);
 	datalen = le64_to_cpu(d.dentry.bitmap.DataLength);
+	min_length = ROUNDUP((uint64_t)info.cluster_count, CHAR_BIT);
+	if (datalen < min_length || datalen > SIZE_MAX) {
+		pr_err("invalid Allocation Bitmap length: %" PRIu64 "\n", datalen);
+		return -EINVAL;
+	}
 
 	pr_debug("Get: allocation table: cluster 0x%x, size: 0x%" PRIx64 "\n", fstclu, datalen);
 	info.alloc_offset = fstclu;
