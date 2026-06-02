@@ -60,20 +60,19 @@ void hexdump(void *data, size_t size)
  * @return    == 0 (success)
  *            <  0 (Failed)
  */
-int allwrite(int fd, void *buf, size_t count)
+int allwrite(int fd, const void *buf, size_t count)
 {
-	ssize_t n = 0;
-	ssize_t total = 0;
+	const unsigned char *pos = buf;
+	ssize_t n;
 
 	while (count) {
-		if ((n = write(fd, buf, count)) < 0)
+		if ((n = write(fd, pos, count)) < 0)
 			return n;
 		if (n == 0)
 			return -1;
 
-		total += n;
-		buf += n;
-		count -=n;
+		pos += n;
+		count -= n;
 	}
 
 	return 0;
@@ -90,18 +89,17 @@ int allwrite(int fd, void *buf, size_t count)
  */
 int allread(int fd, void *buf, size_t count)
 {
-	ssize_t n = 0;
-	ssize_t total = 0;
+	unsigned char *pos = buf;
+	ssize_t n;
 
 	while (count) {
-		if ((n = read(fd, buf, count)) < 0)
+		if ((n = read(fd, pos, count)) < 0)
 			return n;
 		if (n == 0)
 			return -1;
 
-		total += n;
-		buf += n;
-		count -=n;
+		pos += n;
+		count -= n;
 	}
 
 	return 0;
