@@ -817,10 +817,15 @@ uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
 	void *tmp;
 	uint32_t next_clu;
 	size_t allocated;
-	size_t cluster_num = ROUNDUP(len, info.cluster_size);
+	size_t cluster_num;
 
+	if (!info.cluster_size)
+		return 0;
+	cluster_num = len / info.cluster_size + !!(len % info.cluster_size);
 	if (cluster_num <= 1)
 		return cluster_num;
+	if (cluster_num > SIZE_MAX / info.cluster_size)
+		return 0;
 
 	if (!(tmp = realloc(*data, info.cluster_size * cluster_num)))
 		return 0;
