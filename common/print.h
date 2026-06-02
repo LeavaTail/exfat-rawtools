@@ -34,7 +34,7 @@ extern FILE *output;
 #define pr_debug(fmt, ...) print(PRINT_DEBUG, fmt, ##__VA_ARGS__)
 #define pr_msg(fmt, ...)   fprintf(output, fmt, ##__VA_ARGS__)
 
-void hexdump(void *data, size_t size);
+void hexdump(const void *data, size_t size);
 int allwrite(int, const void *, size_t);
 int allread(int, void *, size_t);
 

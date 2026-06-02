@@ -16,15 +16,16 @@
  * @data:    Input data
  * @size:    Input data size
  */
-void hexdump(void *data, size_t size)
+void hexdump(const void *data, size_t size)
 {
-	uint64_t skip = 0;
-	int line, byte = 0;
+	const unsigned char *bytes = data;
+	const unsigned char zero[0x10] = {0};
 	size_t count = size / 0x10;
-	const char zero[0x10] = {0};
+	size_t skip = 0;
+	size_t line, byte;
 
 	for (line = 0; line < count; line++) {
-		if ((line != count - 1) && (!memcmp(data + line * 0x10, zero, 0x10))) {
+		if ((line != count - 1) && (!memcmp(bytes + line * 0x10, zero, 0x10))) {
 			switch (skip++) {
 				case 0:
 					break;
@@ -38,13 +39,13 @@ void hexdump(void *data, size_t size)
 			skip = 0;
 		}
 
-		pr_msg("%08X:  ", line * 0x10);
+		pr_msg("%08zX:  ", line * 0x10);
 		for (byte = 0; byte < 0x10; byte++) {
-			pr_msg("%02X ", ((unsigned char *)data)[line * 0x10 + byte]);
+			pr_msg("%02X ", bytes[line * 0x10 + byte]);
 		}
-		putchar(' ');
+		pr_msg(" ");
 		for (byte = 0; byte < 0x10; byte++) {
-			char ch = ((unsigned char *)data)[line * 0x10 + byte];
+			unsigned char ch = bytes[line * 0x10 + byte];
 			pr_msg("%c", isprint(ch) ? ch : '.');
 		}
 		pr_msg("\n");
