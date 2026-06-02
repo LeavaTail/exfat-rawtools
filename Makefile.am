@@ -1,4 +1,4 @@
-bin_PROGRAMS = checkexfat statfsexfat lsexfat catexfat statexfat
+bin_PROGRAMS = checkexfat statfsexfat lsexfat catexfat statexfat diffexfat
 lib_LTLIBRARIES = libexfat.la
 
 libexfat_la_SOURCES = common/exfat.c common/utf8.c common/print.c \
@@ -11,6 +11,7 @@ statfsexfat_SOURCES = statfs/statfsexfat.c statfs/statfsexfat.h
 lsexfat_SOURCES = ls/lsexfat.c ls/lsexfat.h
 catexfat_SOURCES = cat/catexfat.c cat/catexfat.h
 statexfat_SOURCES = stat/statexfat.c stat/statexfat.h
+diffexfat_SOURCES = diff/diffexfat.c diff/diffexfat.h
 
 TESTS = tests/00_init.sh \
         tests/01_test_checkexfat.sh \
@@ -18,6 +19,7 @@ TESTS = tests/00_init.sh \
         tests/03_test_lsexfat.sh \
         tests/04_test_catexfat.sh \
         tests/05_test_statexfat.sh \
+        tests/06_test_diffexfat.sh \
         tests/10_test_huge.sh
 
 EXTRA_DIST = common
