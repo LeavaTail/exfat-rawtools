@@ -818,6 +818,7 @@ uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
 	uint32_t next_clu;
 	size_t allocated;
 	size_t cluster_num;
+	bitmap_t visited;
 
 	if (!info.cluster_size)
 		return 0;
@@ -828,9 +829,16 @@ uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
 		return cluster_num;
 	if (cluster_num > SIZE_MAX / info.cluster_size)
 		return 0;
-
-	if (!(tmp = realloc(*data, info.cluster_size * cluster_num)))
+	if (clu < EXFAT_FIRST_CLUSTER || clu > info.cluster_count + 1)
 		return 0;
+	if (init_bitmap(&visited, info.cluster_count))
+		return 0;
+	set_bitmap(&visited, clu - EXFAT_FIRST_CLUSTER);
+
+	if (!(tmp = realloc(*data, info.cluster_size * cluster_num))) {
+		free_bitmap(&visited);
+		return 0;
+	}
 	*data = tmp;
 
 	for (allocated = 1; allocated < cluster_num; allocated++) {
@@ -840,11 +848,15 @@ uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
 			break;
 		if (next_clu < EXFAT_FIRST_CLUSTER || next_clu > info.cluster_count + 1)
 			break;
+		if (get_bitmap(&visited, next_clu - EXFAT_FIRST_CLUSTER))
+			break;
+		set_bitmap(&visited, next_clu - EXFAT_FIRST_CLUSTER);
 		if (get_cluster(*data + info.cluster_size * allocated, next_clu))
 			break;
 		clu = next_clu;
 	}
 
+	free_bitmap(&visited);
 	return allocated == cluster_num ? allocated : 0;
 }
 
