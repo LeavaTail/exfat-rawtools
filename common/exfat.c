@@ -1354,8 +1354,10 @@ void exfat_print_fat(void)
 	pr_msg("\n");
 
 	/* Clean up */
-	for (i = 0; i < list_size && fat_chain[i]; i++)
+	for (i = 0; i < list_size; i++) {
+		free_list2(fat_chain[i]);
 		free(fat_chain[i]);
+	}
 	free(fat_chain);
 	free(fat);
 }
