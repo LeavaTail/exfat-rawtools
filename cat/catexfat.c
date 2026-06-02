@@ -185,6 +185,10 @@ int main(int argc, char *argv[])
 	}
 
 	index = exfat_get_cache(clu);
+	if (index < 0) {
+		ret = index;
+		goto out;
+	}
 	/* Directory */
 	if (info.root[index]) {
 		f = info.root[index]->data;
@@ -206,7 +210,12 @@ int main(int argc, char *argv[])
 			ret = ENOENT;
 			goto out;
 		}
-		exfat_print_file(clu, exfat_get_cache(p_clu));
+		index = exfat_get_cache(p_clu);
+		if (index < 0) {
+			ret = index;
+			goto out;
+		}
+		exfat_print_file(clu, index);
 	}
 
 	ret = EXIT_SUCCESS;

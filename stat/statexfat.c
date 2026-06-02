@@ -80,7 +80,11 @@ static struct exfat_fileinfo *exfat_get_fileinfo(uint32_t clu, int index, char *
 {
 	int i;
 	uint32_t p_clu;
+	int cache_index;
 	node2_t *tmp;
+
+	if (index < 0)
+		return NULL;
 
 	tmp = info.root[index];
 
@@ -94,7 +98,10 @@ static struct exfat_fileinfo *exfat_get_fileinfo(uint32_t clu, int index, char *
 
 	if ((p_clu = exfat_lookup(info.root_offset, path)) == 0)
 		return NULL;
-	tmp = info.root[exfat_get_cache(p_clu)];
+	cache_index = exfat_get_cache(p_clu);
+	if (cache_index < 0)
+		return NULL;
+	tmp = info.root[cache_index];
 
 	while (tmp->next != NULL) {
 		tmp = tmp->next;
@@ -248,6 +255,10 @@ int main(int argc, char *argv[])
 	}
 
 	index = exfat_get_cache(clu);
+	if (index < 0) {
+		ret = index;
+		goto out;
+	}
 	f = exfat_get_fileinfo(clu, index, path);
 	if (!f)
 		goto out;

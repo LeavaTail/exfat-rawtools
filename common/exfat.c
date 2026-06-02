@@ -1100,23 +1100,27 @@ int exfat_get_cache(uint32_t clu)
 {
 	int i;
 	uint32_t old_size;
+	uint32_t new_size;
+	node2_t **tmp;
 
 	for (i = 0; i < info.root_size && info.root[i]; i++) {
 		if (info.root[i]->index == clu)
 			return i;
 	}
+	if (i < info.root_size)
+		return i;
+	if (info.root_size > UINT32_MAX - DENTRY_LISTSIZE)
+		return -ENOMEM;
 
 	old_size = info.root_size;
-	info.root_size += DENTRY_LISTSIZE;
-	node2_t **tmp = calloc(info.root_size, sizeof(node2_t *));
-	if (tmp) {
-		memcpy(tmp, info.root, old_size * sizeof(node2_t *));
-		free(info.root);
-		info.root = tmp;
-	} else {
-		pr_warn("Can't expand directory chain, so delete last chain.\n");
-		delete_node2(info.root[--i]);
-	}
+	new_size = old_size + DENTRY_LISTSIZE;
+	tmp = calloc(new_size, sizeof(node2_t *));
+	if (!tmp)
+		return -ENOMEM;
+	memcpy(tmp, info.root, old_size * sizeof(node2_t *));
+	free(info.root);
+	info.root = tmp;
+	info.root_size = new_size;
 
 	return i;
 }
@@ -2108,7 +2112,7 @@ uint32_t exfat_lookup(uint32_t clu, char *name)
 			exfat_traverse_directory(clu);
 			index = exfat_get_cache(clu);
 			/* Directory doesn't exist */
-			if (!info.root[index]) {
+			if (index < 0 || !info.root[index]) {
 				pr_err("This Directory doesn't exist in filesystem.\n");
 				return 0;
 			}
