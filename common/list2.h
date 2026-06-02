@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <errno.h>
 
 typedef struct node2 {
 	uint32_t index;
@@ -22,20 +23,23 @@ static inline node2_t *last_node2(node2_t *node)
 	return node;
 }
 
-static inline void insert_node2(node2_t *head, uint32_t i, void *d)
+static inline int insert_node2(node2_t *head, uint32_t i, void *d)
 {
 	node2_t *node;
 
 	node = malloc(sizeof(node2_t));
+	if (!node)
+		return -ENOMEM;
 	node->index = i;
 	node->data = d;
 	node->next = head->next;
 	head->next = node;
+	return 0;
 }
 
-static inline void append_node2(node2_t *head, uint32_t i, void *d)
+static inline int append_node2(node2_t *head, uint32_t i, void *d)
 {
-	insert_node2(last_node2(head), i, d);
+	return insert_node2(last_node2(head), i, d);
 }
 
 static inline void delete_node2(node2_t *node)
@@ -54,6 +58,8 @@ static inline node2_t *init_node2(uint32_t i, void *d)
 	node2_t *new_node;
 
 	new_node = malloc(sizeof(node2_t));
+	if (!new_node)
+		return NULL;
 	new_node->index = i;
 	new_node->data = d;
 	new_node->next = NULL;

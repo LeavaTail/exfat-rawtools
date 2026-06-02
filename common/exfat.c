@@ -1188,7 +1188,11 @@ int exfat_create_cache(node2_t *head, uint32_t clu,
 	exfat_convert_unixtime(&f->atime, le32_to_cpu(file->dentry.file.LastAccessedTimestamp),
 			0,
 			file->dentry.file.LastAccessdUtcOffset);
-	append_node2(head, next_index, f);
+	if (append_node2(head, next_index, f)) {
+		free(f->name);
+		free(f);
+		return -ENOMEM;
+	}
 	((struct exfat_fileinfo *)(head->data))->cached = 1;
 
 	/* If this entry is Directory, prepare to create next chain */
@@ -1212,10 +1216,14 @@ int exfat_create_cache(node2_t *head, uint32_t clu,
 		d->hash = le16_to_cpu(stream->dentry.stream.NameHash);
 
 		index = exfat_get_cache(next_index);
+		if (index < 0) {
+			free(d->name);
+			free(d);
+			return index;
+		}
 		info.root[index] = init_node2(next_index, d);
 		if (info.root[index] == NULL) {
-			free(f->name);
-			free(f);
+			free(d->name);
 			free(d);
 			return -ENOMEM;
 		}
@@ -1327,10 +1335,12 @@ void exfat_print_fat(void)
 		if (EXFAT_FIRST_CLUSTER <= contents && contents < EXFAT_BADCLUSTER) {
 			for (j = 0; j < list_size; j++) {
 				if (fat_chain[j] && fat_chain[j]->index == contents) {
-					insert_node2(fat_chain[j], i, NULL);
+					if (insert_node2(fat_chain[j], i, NULL))
+						goto out;
 					break;
 				} else if (fat_chain[j] && le32_to_cpu(fat[last_node2(fat_chain[j])->index]) == i) {
-					append_node2(fat_chain[j], i, NULL);
+					if (append_node2(fat_chain[j], i, NULL))
+						goto out;
 					break;
 				} else if (!fat_chain[j]) {
 					fat_chain[j] = init_node2(i, NULL);
@@ -1353,6 +1363,7 @@ void exfat_print_fat(void)
 	}
 	pr_msg("\n");
 
+out:
 	/* Clean up */
 	for (i = 0; i < list_size; i++) {
 		free_list2(fat_chain[i]);
