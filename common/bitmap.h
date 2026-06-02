@@ -18,7 +18,11 @@ typedef struct {
 
 static inline int init_bitmap(bitmap_t *b, size_t s)
 {
-	b->data = calloc((s / CHAR_BIT) + 1, sizeof(uint8_t));
+	size_t bytes = s / CHAR_BIT + !!(s % CHAR_BIT);
+
+	if (!bytes)
+		bytes = 1;
+	b->data = calloc(bytes, sizeof(*b->data));
 	if (!b->data)
 		return -ENOMEM;
 	b->size = s;
@@ -26,7 +30,7 @@ static inline int init_bitmap(bitmap_t *b, size_t s)
 	return 0;
 }
 
-static inline int get_bitmap(bitmap_t *b, size_t value)
+static inline int get_bitmap(const bitmap_t *b, size_t value)
 {
 	size_t offset;
 	size_t shift;
@@ -63,6 +67,8 @@ static inline int set_bitmap(bitmap_t *b, size_t value)
 static inline void free_bitmap(bitmap_t *b)
 {
 	free(b->data);
+	b->data = NULL;
+	b->size = 0;
 }
 
 #endif /*_BITMAP_H */
