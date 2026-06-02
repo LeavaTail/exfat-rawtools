@@ -2,7 +2,7 @@ bin_PROGRAMS = checkexfat statfsexfat lsexfat catexfat statexfat diffexfat
 lib_LTLIBRARIES = libexfat.la
 
 libexfat_la_SOURCES = common/exfat.c common/utf8.c common/print.c \
-                      common/list2.h common/utf8.h common/exfat.h common/print.h
+                      common/list2.h common/bitmap.h common/utf8.h common/exfat.h common/print.h
 libexfat_la_LDFLAGS = -static
 LDADD=libexfat.la $(INTLLIBS)
 
@@ -22,7 +22,10 @@ TESTS = tests/00_init.sh \
         tests/06_test_diffexfat.sh \
         tests/10_test_huge.sh
 
-EXTRA_DIST = common
+EXTRA_DIST = LICENSE
+
+dist_man_MANS = mans/checkexfat.8 mans/statfsexfat.8 mans/lsexfat.8 \
+                mans/catexfat.8 mans/statexfat.8 mans/diffexfat.8
 AM_CPPFLAGS = -I$(top_srcdir)/common
 
 if DEBUG

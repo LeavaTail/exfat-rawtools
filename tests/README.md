@@ -120,4 +120,10 @@ The percentage of clusters      :          0 (%)
 ## Test_Items
 
 - Check if these can be built.
-- Check checkexfat
+- Check `checkexfat`.
+- Check `statfsexfat`.
+- Check `lsexfat`.
+- Check `catexfat`.
+- Check `statexfat`.
+- Check `diffexfat`.
+- Check tools against a sparse 2 TiB exFAT image.
