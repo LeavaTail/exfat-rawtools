@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <time.h>
 #include <errno.h>
@@ -51,7 +52,8 @@ int get_sector(void *data, off_t index, size_t count)
 		return -EINVAL;
 	}
 
-	pr_debug("Get: Sector from 0x%lx to 0x%lx\n", index , index + bytes - 1);
+	pr_debug("Get: Sector from 0x%" PRIxMAX " to 0x%" PRIxMAX "\n",
+			(uintmax_t)index, (uintmax_t)index + bytes - 1);
 	ret = pread(info.fd, data, bytes, index);
 	if (ret < 0) {
 		pr_err("read: %s\n", strerror(errno));
@@ -92,7 +94,8 @@ int set_sector(void *data, off_t index, size_t count)
 		return -EINVAL;
 	}
 
-	pr_debug("Set: Sector from 0x%lx to 0x%lx\n", index, index + bytes - 1);
+	pr_debug("Set: Sector from 0x%" PRIxMAX " to 0x%" PRIxMAX "\n",
+			(uintmax_t)index, (uintmax_t)index + bytes - 1);
 	ret = pwrite(info.fd, data, bytes, index);
 	if (ret < 0) {
 		pr_err("write: %s\n", strerror(errno));
@@ -153,7 +156,8 @@ int get_clusters(void *data, off_t index, size_t num)
 
 	if (num == 0 || index < EXFAT_FIRST_CLUSTER ||
 			(uint64_t)index + num - 1 > info.cluster_count + 1) {
-		pr_err("Internal Error: invalid cluster range %lu ~ %lu.\n", index, index + num - 1);
+		pr_err("Internal Error: invalid cluster range %" PRIdMAX " ~ %" PRIdMAX ".\n",
+				(intmax_t)index, (intmax_t)index + (intmax_t)num - 1);
 		return -EINVAL;
 	}
 
@@ -180,7 +184,8 @@ int set_clusters(void *data, off_t index, size_t num)
 
 	if (num == 0 || index < EXFAT_FIRST_CLUSTER ||
 			(uint64_t)index + num - 1 > info.cluster_count + 1) {
-		pr_err("Internal Error: invalid cluster range %lu ~ %lu.\n", index, index + num - 1);
+		pr_err("Internal Error: invalid cluster range %" PRIdMAX " ~ %" PRIdMAX ".\n",
+				(intmax_t)index, (intmax_t)index + (intmax_t)num - 1);
 		return -EINVAL;
 	}
 
