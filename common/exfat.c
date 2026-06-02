@@ -822,6 +822,8 @@ uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
 	if (!info.cluster_size)
 		return 0;
 	cluster_num = len / info.cluster_size + !!(len % info.cluster_size);
+	if (cluster_num > info.cluster_count)
+		return 0;
 	if (cluster_num <= 1)
 		return cluster_num;
 	if (cluster_num > SIZE_MAX / info.cluster_size)
