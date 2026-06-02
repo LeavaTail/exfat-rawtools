@@ -32,11 +32,10 @@ The following functions have been implemented:
 
 ### checkexfat
 
-The [exFAT file system specification](https://docs.microsoft.com/en-us/windows/win32/fileio/exfat-specification)
+The [exFAT file system specification](https://learn.microsoft.com/en-us/windows/win32/fileio/exfat-specification)
 describes parameter requirements.
 checkexfat can detect the following exFAT filesystem failures:
 
-- Main boot region parameter
 - Main boot region parameters
 - Directory entry order
 - File timestamps

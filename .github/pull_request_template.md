@@ -1,5 +1,5 @@
 ## Related Issue
-  * https://github.com/LeavaTail/debugfatfs/issues/?
+  * https://github.com/LeavaTail/exfat-rawtools/issues/?
 
 ## Summary
   * What is this Pull request?

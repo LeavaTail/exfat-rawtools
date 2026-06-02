@@ -1,24 +1,24 @@
 # Contribution Guide
 
-Welcome your contributions, included bug report and feature development.
+Contributions, including bug reports and feature development, are welcome.
 
 ## Overview
 
-There are two ways to contribute, "Bug report" and "Fix(Develop) feature".
+There are two ways to contribute: report a bug or develop a fix or feature.
 
 ### Bug Report
 
-This is the easiest way to report a problems.
+This is the easiest way to report a problem.
 
-If you find a problem or issue, let's create issue ticket!
+If you find a problem, please create an issue ticket.
 You can create an issue ticket at [Issues](https://github.com/LeavaTail/exfat-rawtools/issues).
 
 In summary, the contribution steps are as follows.
 
-1. check opened issue ticket
-2. create issue ticket
+1. Check existing issue tickets
+2. Create an issue ticket
 
-⚠️ Note that make sure it has not already reported before create issue ticket
+Before creating an issue ticket, make sure the problem has not already been reported.
 
 ### Fix Feature
 
@@ -31,18 +31,18 @@ When you have completed your work in the forked repository, please create
 
 In summary, the contribution steps are as follows.
 
-1. check opened issue ticket
-2. create issue ticket
-3. fork this repository to yours
-4. Commit your local repository and add Signed-Off information
-5. Please send pull request to develop
+1. Check existing issue tickets
+2. Create an issue ticket
+3. Fork this repository
+4. Commit your changes and add Signed-off-by information
+5. Send a pull request to `develop`
 
 ## Issue Rules
 
 - [ ] The issue is not focused in the community (An issue ticket has not been create)
   - If you find a similar ticket, join the discussion on that ticket!
 - [ ] Use of prepared Issue template
-- [ ] Fill in the issue templete (as much as possible)
+- [ ] Fill in the issue template (as much as possible)
 - [ ] "Assignees" is set who handles it
   - If you are not sure, assign [LeavaTail](https://github.com/LeavaTail)
 
@@ -50,11 +50,11 @@ In summary, the contribution steps are as follows.
 
 - [ ] Select target branch to "develop" branch.
 - [ ] Use of prepared Pull request template
-- [ ] Fill in the pull request templete (as much as possible)
+- [ ] Fill in the pull request template (as much as possible)
 - [ ] Check status is "passed"
-- [ ] Please set reviwers to maintainer
+- [ ] Please set reviewers to maintainer
   - If you are not sure, assign [LeavaTail](https://github.com/LeavaTail)
-- [ ] Please set assinees to assign reviewers
+- [ ] Please set assignees to assign reviewers
 
 ## Commit Message
 
@@ -81,7 +81,7 @@ ${Detail}
 
 ## Branch rules
 
-Inherit the concept of git-glow
+This workflow follows a Gitflow-style branching model.
 
 ```mermaid
 %%{init: { 
@@ -112,17 +112,17 @@ gitGraph
 
 - main (🔒): release branch.
   - main branch doesn't let us commit directly
-  - main branch will be merged from devleop branch and hotfix branch.
+  - main branch will be merged from develop branch and hotfix branch.
     - A merge of develop branch will results in a minor version up
     - A merge of hotfix branch will results in a patch version up.
-- develop: developing branch. Will merge into master.
+- develop: development branch. Will be merged into `main`.
   - develop branch doesn't let us commit directly without maintainer
     - Updates of changelog and preparation of release are handled by this branch.
-  - develop branch will be merged from any topic/XXX(XXX is any sytring) branch.
+  - develop branch will be merged from any topic/XXX(XXX is any string) branch.
 - hotfix: To be fixed when bugs are discovered.
-  - Fix critiacal bug in thi branch when users reported
+  - Fix critical bug in this branch when users reported
 - topic/XXX: (XXX is any string)
-  - It's created when you do some wodk
+  - It's created when you do some work
 
 ## Coding Style
 
@@ -132,7 +132,7 @@ Follow the [Linux kernel coding style](https://www.kernel.org/doc/html/latest/pr
 
 Reviewers will keep the following points in mind when reviewing.
 
-- [ ] Commit is created at the apprpriate granularity
+- [ ] Commit is created at the appropriate granularity
   - Smaller commits are preferred over larger commits
   - Multiple fixes should not be included in a single commit
 - [ ] You can explain a fix
