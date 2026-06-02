@@ -1697,8 +1697,14 @@ int exfat_traverse_directory(uint32_t clu)
 {
 	int i, j, name_len, name_entries;
 	uint16_t uniname[MAX_NAME_LENGTH] = {0};
-	size_t index = exfat_get_cache(clu);
-	struct exfat_fileinfo *f = (struct exfat_fileinfo *)info.root[index]->data;
+	int index = exfat_get_cache(clu);
+	struct exfat_fileinfo *f;
+
+	if (index < 0 || !info.root[index]) {
+		pr_err("Directory cluster #%u is not cached.\n", clu);
+		return -ENOENT;
+	}
+	f = (struct exfat_fileinfo *)info.root[index]->data;
 	size_t entries = info.cluster_size / sizeof(struct exfat_dentry);
 	size_t cluster_num = 1;
 	__u8 prev = 0;
@@ -2076,9 +2082,13 @@ uint32_t exfat_lookup(uint32_t clu, char *name)
 		pr_debug("Lookup %s in clu#%u\n", path[i], clu);
 		found = false;
 		index = exfat_get_cache(clu);
+		if (index < 0 || !info.root[index]) {
+			pr_err("This Directory doesn't exist in filesystem.\n");
+			return 0;
+		}
 		f = (struct exfat_fileinfo *)info.root[index]->data;
 		/* Directory doesn't cache yet */
-		if ((!info.root[index]) || (!(f->cached))) {
+		if (!(f->cached)) {
 			exfat_traverse_directory(clu);
 			index = exfat_get_cache(clu);
 			/* Directory doesn't exist */
