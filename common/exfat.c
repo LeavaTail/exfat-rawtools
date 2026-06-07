@@ -25,6 +25,25 @@ extern struct exfat_info info;
 /*************************************************************************************************/
 
 /**
+ * buffer_is_zero - check whether all bytes in a buffer are zero
+ * @data:           buffer to check
+ * @len:            buffer length
+ *
+ * @return:         true  (all bytes are zero)
+ *                  false (otherwise)
+ */
+static bool buffer_is_zero(const void *data, size_t len)
+{
+	const uint8_t *p = data;
+
+	while (len--) {
+		if (*p++)
+			return false;
+	}
+	return true;
+}
+
+/**
  * get_sector - Get Raw-Data from any sector
  * @data:       Sector raw data (Output)
  * @index:      Start bytes
@@ -349,7 +368,6 @@ int exfat_load_bootsec(struct exfat_bootsec *b)
 int exfat_check_bootsec(struct exfat_bootsec *b)
 {
 	int ret = 0;
-	uint8_t zero[sizeof(struct exfat_bootsec)] = {0};
 	uint8_t bps = b->BytesPerSectorShift;
 	uint8_t spc = b->SectorsPerClusterShift;
 	uint32_t fatoff = le32_to_cpu(b->FatOffset);
@@ -372,8 +390,8 @@ int exfat_check_bootsec(struct exfat_bootsec *b)
 		ret = -EINVAL;
 	}
 
-	if (memcmp(b->MustBeZero, &zero, 53)) {
-		pr_err("invalid MustBeZero \"%53s\"\n", b->MustBeZero);
+	if (!buffer_is_zero(b->MustBeZero, sizeof(b->MustBeZero))) {
+		pr_err("invalid MustBeZero field.\n");
 		ret = -EINVAL;
 	}
 
