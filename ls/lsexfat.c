@@ -61,7 +61,7 @@ static void usage(void)
  * version        - print out program version
  * @command_name:   command name
  * @version:        program version
- * @author:         program authoer
+ * @author:         program author
  */
 static void version(const char *command_name, const char *version, const char *author)
 {

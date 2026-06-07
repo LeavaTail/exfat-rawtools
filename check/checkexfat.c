@@ -58,7 +58,7 @@ static void usage(void)
  * version        - print out program version
  * @command_name:   command name
  * @version:        program version
- * @author:         program authoer
+ * @author:         program author
  */
 static void version(const char *command_name, const char *version, const char *author)
 {
@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
 	if (exfat_check_bootchecksum())
 		goto out;
 
-	/* Ignore errot message in Root Directory */
+	/* Ignore error message in Root Directory */
 	if (exfat_traverse_root_directory())
 		goto out;
 	f = (struct exfat_fileinfo *)info.root[0]->data;

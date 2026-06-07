@@ -56,7 +56,7 @@ static struct option const longopts[] =
 static void usage(void)
 {
 	fprintf(stderr, "Usage: %s [OPTION]... FILE1 FILE2\n", PROGRAM_NAME);
-	fprintf(stderr, "Compare 2 exfat image and print difference\n");
+	fprintf(stderr, "Compare two exFAT images and print differences\n");
 	fprintf(stderr, "\n");
 
 	fprintf(stderr, "  --help\tdisplay this help and exit.\n");
@@ -68,7 +68,7 @@ static void usage(void)
  * version        - print out program version
  * @command_name:   command name
  * @version:        program version
- * @author:         program authoer
+ * @author:         program author
  */
 static void version(const char *command_name, const char *version, const char *author)
 {

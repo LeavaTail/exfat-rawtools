@@ -306,7 +306,7 @@ int exfat_store_info(struct exfat_bootsec *b)
 }
 
 /**
- * exfat_clean_info - function to clean opeartions
+ * exfat_clean_info - function to clean operations
  *
  * @return            0 (success)
  */
@@ -822,12 +822,12 @@ int exfat_new_clusters(size_t num_alloc)
 }
 
 /**
- * exfat_concat_cluster_fast - Contatenate cluster @data with next_cluster (Only FAT_CHAIN)
+ * exfat_concat_cluster_fast - Concatenate cluster @data with next_cluster (Only FAT_CHAIN)
  * @clu:                       index of the cluster
  * @data:                      The cluster (Output)
  * @len:                       Data length
  *
- * @retrun:                    cluster count (@clu has next cluster)
+ * @return:                    cluster count (@clu has next cluster)
  *                             0             (@clu doesn't have next cluster, or failed to realloc)
  */
 uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
@@ -879,12 +879,12 @@ uint32_t exfat_concat_cluster_fast(uint32_t clu, void **data, size_t len)
 }
 
 /**
- * exfat_concat_cluster - Contatenate cluster @data with next_cluster
+ * exfat_concat_cluster - Concatenate cluster @data with next_cluster
  * @f:                    file information pointer
  * @clu:                  index of the cluster
  * @data:                 The cluster (Output)
  *
- * @retrun:               cluster count (@clu has next cluster)
+ * @return:               cluster count (@clu has next cluster)
  *                        0             (@clu doesn't have next cluster, or failed to realloc)
  */
 uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **data)
@@ -909,7 +909,7 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 		*data = tmp;
 		for (i = 1; i < cluster_num; i++) {
 			if (exfat_load_bitmap(clu + i) != 0x1) {
-				pr_err("Cluster #%u becomes allcation consistency. Ignore #%u ~ %" PRIu64 ".\n",
+				pr_err("Cluster #%u is inconsistent with the Allocation Bitmap. Ignoring #%u ~ %" PRIu64 ".\n",
 					clu, clu + i, clu + cluster_num - 1);
 				break;
 			}
@@ -928,7 +928,7 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 		if (exfat_get_fat(tmp_clu, &next_clu))
 			break;
 		if (next_clu == EXFAT_LASTCLUSTER) {
-			pr_err("File size(%" PRIu64 ") and FAT chain size(%" PRIu64 ") are un-matched.\n",
+			pr_err("File size(%" PRIu64 ") and FAT chain size(%" PRIu64 ") are mismatched.\n",
 				f->datalen, allocated * info.cluster_size);
 			break;
 		}
@@ -941,7 +941,7 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
 			break;
 		}
 		if (exfat_load_bitmap(next_clu) != 1) {
-			pr_err("FAT and Allocation Bitmap are un-matched. Ignore #%u.\n", next_clu);
+			pr_err("FAT and Allocation Bitmap are mismatched. Ignoring #%u.\n", next_clu);
 			break;
 		}
 		set_bitmap(&b, next_clu - EXFAT_FIRST_CLUSTER);
@@ -971,7 +971,7 @@ uint32_t exfat_concat_cluster(struct exfat_fileinfo *f, uint32_t clu, void **dat
  * @clu:               index of the cluster
  * @data:              The cluster
  *
- * @retrun:            cluster count (@clu has next cluster)
+ * @return:            cluster count (@clu has next cluster)
  *                     0             (@clu doesn't have next cluster, or failed to realloc)
  */
 uint32_t exfat_set_cluster(struct exfat_fileinfo *f, uint32_t clu, void *data)
@@ -1107,7 +1107,7 @@ void exfat_print_cache(void)
  * exfat_check_cache - check whether @index has already loaded
  * @clu:               index of the cluster
  *
- * @retrun:            1 (@clu has loaded)
+ * @return:            1 (@clu has loaded)
  *                     0 (@clu hasn't loaded)
  */
 int exfat_check_cache(uint32_t clu)
@@ -1158,7 +1158,7 @@ int exfat_get_cache(uint32_t clu)
 }
 
 /**
- * exfat_clean_cache - function to clean opeartions
+ * exfat_clean_cache - function to clean operations
  * @index:             directory chain index
  *
  * @return              0 (success)
@@ -1187,7 +1187,7 @@ int exfat_clean_cache(uint32_t index)
 }
 
 /**
- * exfat_create_cache - Create file infomarion
+ * exfat_create_cache - Create file information
  * @head:               Directory chain head
  * @clu:                parent Directory cluster index
  * @file:               file dentry
@@ -1622,7 +1622,7 @@ int exfat_load_upcase_cluster(struct exfat_dentry d)
 
 	checksum = exfat_calculate_tablechecksum((unsigned char *)info.upcase_table, info.upcase_size);
 	if (checksum != d.dentry.upcase.TableCheckSum)
-		pr_warn("Up-case table checksum is difference. (dentry: %x, calculate: %x)\n",
+		pr_warn("Up-case table checksum differs. (dentry: %x, calculated: %x)\n",
 				d.dentry.upcase.TableCheckSum,
 				checksum);
 
@@ -1804,7 +1804,7 @@ int exfat_traverse_directory(uint32_t clu)
 				continue;
 			case DENTRY_STREAM:
 				if (prev != DENTRY_FILE) {
-					pr_warn("clu#%u index#%d: It's not continuous files. (Expect: %x, Actual: %x)\n",
+					pr_warn("clu#%u index#%d: It's not continuous files. (Expected: %x, Actual: %x)\n",
 							clu, i, DENTRY_STREAM, prev);
 					prev = DENTRY_UNUSED;
 					continue;
@@ -1821,7 +1821,7 @@ int exfat_traverse_directory(uint32_t clu)
 				continue;
 			case DENTRY_NAME:
 				if (prev != DENTRY_STREAM) {
-					pr_warn("clu#%u index#%d: It's not continuous files. (Expect: %x, Actual: %x)\n",
+					pr_warn("clu#%u index#%d: It's not continuous files. (Expected: %x, Actual: %x)\n",
 							clu, i, DENTRY_NAME, prev);
 					prev = DENTRY_UNUSED;
 					continue;
@@ -1835,7 +1835,7 @@ int exfat_traverse_directory(uint32_t clu)
 					continue;
 				}
 				if (i + name_entries > entries) {
-					pr_warn("clu#%u index#%d: File name is too long. (Expect: < %d, Actual: %d)\n",
+					pr_warn("clu#%u index#%d: File name is too long. (Expected: < %d, Actual: %d)\n",
 							clu, i, raw_length, stream.dentry.stream.NameLength);
 					prev = DENTRY_UNUSED;
 					continue;
@@ -1860,7 +1860,7 @@ int exfat_traverse_directory(uint32_t clu)
 	}
 out:
 	if (prev != DENTRY_UNUSED) {
-		pr_warn("clu#%u index#%d: File might be imcomplete. (Expect: < %x, Actual: %x)\n",
+		pr_warn("clu#%u index#%d: File might be incomplete. (Expected: < %x, Actual: %x)\n",
 				clu, i, DENTRY_UNUSED, prev);
 	}
 
