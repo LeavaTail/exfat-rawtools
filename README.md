@@ -34,12 +34,29 @@ The following functions have been implemented:
 
 The [exFAT file system specification](https://learn.microsoft.com/en-us/windows/win32/fileio/exfat-specification)
 describes parameter requirements.
-checkexfat can detect the following exFAT filesystem failures:
+checkexfat checks whether an image can be read as an exFAT volume and reports
+findings about metadata and cluster-use consistency. It currently checks the
+following areas:
 
 - Main boot region parameters
-- Directory entry order
+- Extended boot sector signatures
+- Main boot region checksum
+- Required root directory entries
+- Directory entry order and file name entry layout
 - File timestamps
-- Consistency between the Allocation Bitmap and actual cluster use
+- FAT chain and Allocation Bitmap consistency
+- Duplicate cluster references
+- Allocated but unreferenced clusters
+
+Findings are described by impact:
+
+- `fatal`: root directory traversal cannot continue
+- `error`: file data or cluster references may be affected
+- `warning`: metadata looks suspicious, but traversal can continue
+
+Current checkexfat output does not yet summarize findings by impact. Some
+findings are printed as warnings or errors without changing the process exit
+status.
 
 ```
 $ checkexfat tests/sample/error.img
