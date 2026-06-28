@@ -11,6 +11,8 @@
  * Debug code
  */
 extern unsigned int print_level;
+extern unsigned int print_error_count;
+extern unsigned int print_warning_count;
 extern FILE *output;
 #define PRINT_ERR      1
 #define PRINT_WARNING  2
@@ -20,6 +22,10 @@ extern FILE *output;
 #define print(level, fmt, ...) \
 	do { \
 		if (print_level >= level) { \
+			if (level == PRINT_ERR) \
+				print_error_count++; \
+			else if (level == PRINT_WARNING) \
+				print_warning_count++; \
 			if (level == PRINT_DEBUG) \
 			fprintf( output, "(%s:%u): " fmt, \
 					__func__, __LINE__, ##__VA_ARGS__); \
