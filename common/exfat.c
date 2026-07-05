@@ -369,7 +369,7 @@ int exfat_store_info(struct exfat_bootsec *b)
 
 	strncpy((char *)f->name, "/", strlen("/") + 1);
 	f->namelen = strlen("/");
-	f->datalen = info.cluster_count * info.cluster_size;
+	f->datalen = (uint64_t)info.cluster_count * info.cluster_size;
 	f->attr = ATTR_DIRECTORY;
 	f->clu = le32_to_cpu(b->FirstClusterOfRootDirectory);
 
