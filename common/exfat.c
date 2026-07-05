@@ -12,7 +12,11 @@
 #include <errno.h>
 #include <ctype.h>
 #include <asm/byteorder.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
+#ifdef __linux__
+#include <linux/fs.h>
+#endif
 #include "bitmap.h"
 #include "exfat.h"
 
@@ -41,6 +45,68 @@ static bool buffer_is_zero(const void *data, size_t len)
 			return false;
 	}
 	return true;
+}
+
+/**
+ * get_input_size - get comparable input size in bytes
+ * @s:              file status
+ * @size:           input size in bytes (Output)
+ *
+ * @return:         1 (size was obtained)
+ *                  0 (size is not available for this input)
+ *                 <0 (failed)
+ */
+static int get_input_size(const struct stat *s, uint64_t *size)
+{
+	if (S_ISREG(s->st_mode)) {
+		if (s->st_size < 0)
+			return -EINVAL;
+		*size = s->st_size;
+		return 1;
+	}
+
+#ifdef BLKGETSIZE64
+	if (S_ISBLK(s->st_mode)) {
+		if (ioctl(info.fd, BLKGETSIZE64, size) < 0)
+			return 0;
+		return 1;
+	}
+#endif
+
+	return 0;
+}
+
+/**
+ * exfat_check_volume_size - compare VolumeLength with input size
+ * @s:                       file status
+ *
+ * @return:                  0 (success or skipped)
+ *                           <0 (failed)
+ */
+static int exfat_check_volume_size(const struct stat *s)
+{
+	int ret;
+	uint64_t input_size = 0;
+	uint64_t volume_size;
+
+	if (info.sector_size && info.vol_size > UINT64_MAX / info.sector_size) {
+		pr_err("VolumeLength is too large: %" PRIu64 " sectors * %u bytes.\n",
+				info.vol_size, info.sector_size);
+		return -EINVAL;
+	}
+
+	volume_size = info.vol_size * info.sector_size;
+	ret = get_input_size(s, &input_size);
+	if (ret <= 0)
+		return ret;
+
+	if (input_size < volume_size) {
+		pr_err("VolumeLength requires %" PRIu64 " bytes, but input size is %" PRIu64 " bytes.\n",
+				volume_size, input_size);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**
@@ -272,13 +338,6 @@ int exfat_store_info(struct exfat_bootsec *b)
 		return -errno;
 	}
 
-	if ((f = calloc(sizeof(struct exfat_fileinfo), 1)) == NULL)
-		return -ENOMEM;
-	if ((f->name = calloc(sizeof(unsigned char *), (strlen("/") + 1))) == NULL) {
-		free(f);
-		return -ENOMEM;
-	}
-
 	info.total_size = s.st_size;
 	info.partition_offset = le64_to_cpu(b->PartitionOffset);
 	info.vol_size = le64_to_cpu(b->VolumeLength);
@@ -289,6 +348,18 @@ int exfat_store_info(struct exfat_bootsec *b)
 	info.fat_length = b->NumberOfFats * le32_to_cpu(b->FatLength) * info.sector_size;
 	info.heap_offset = le32_to_cpu(b->ClusterHeapOffset);
 	info.root_offset = le32_to_cpu(b->FirstClusterOfRootDirectory);
+
+	ret = exfat_check_volume_size(&s);
+	if (ret)
+		return ret;
+
+	if ((f = calloc(sizeof(struct exfat_fileinfo), 1)) == NULL)
+		return -ENOMEM;
+	if ((f->name = calloc(sizeof(unsigned char *), (strlen("/") + 1))) == NULL) {
+		free(f);
+		return -ENOMEM;
+	}
+
 	info.root[0] = init_node2(info.root_offset, f);
 	if (!info.root[0]) {
 		free(f->name);

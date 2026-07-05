@@ -65,6 +65,7 @@ Current check coverage:
 | BOOT-001 | Main boot region | Validate required boot sector fields and ranges | fatal | Stops check |
 | BOOT-002 | Main boot region | Validate extended boot sector signatures | fatal | Stops check |
 | BOOT-003 | Main boot region | Validate boot region checksum | fatal | Stops check |
+| BOOT-004 | Main boot region | Validate that `VolumeLength` fits the input size when available | fatal | Stops check |
 | ROOT-001 | Root directory | Find required Allocation Bitmap and Up-case Table entries | fatal | Stops check |
 | ROOT-002 | Root directory | Detect root directory cluster-chain loop | fatal | Stops check |
 | META-001 | Up-case Table | Validate Up-case Table checksum | warning | Printed only |
