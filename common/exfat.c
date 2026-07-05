@@ -1835,6 +1835,7 @@ int exfat_traverse_directory(uint32_t clu)
 	__u8 raw_length = 0;
 	uint64_t valid_len = 0;
 	uint64_t data_len = 0;
+	uint64_t heap_size = (uint64_t)info.cluster_count * info.cluster_size;
 	void *data;
 	struct exfat_dentry d;
 	struct exfat_dentry file, stream;
@@ -1894,6 +1895,10 @@ int exfat_traverse_directory(uint32_t clu)
 				if (valid_len > data_len) {
 					pr_err("clu#%u index#%d: ValidDataLength(%" PRIu64 ") exceeds DataLength(%" PRIu64 ").\n",
 							clu, i, valid_len, data_len);
+				}
+				if (data_len > heap_size) {
+					pr_err("clu#%u index#%d: DataLength(%" PRIu64 ") exceeds cluster heap size(%" PRIu64 ").\n",
+							clu, i, data_len, heap_size);
 				}
 				stream = d;
 				raw_length = d.dentry.stream.NameLength;
