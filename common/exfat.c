@@ -345,7 +345,7 @@ int exfat_store_info(struct exfat_bootsec *b)
 	info.cluster_size = (1 << b->SectorsPerClusterShift) * info.sector_size;
 	info.cluster_count = le32_to_cpu(b->ClusterCount);
 	info.fat_offset = le32_to_cpu(b->FatOffset);
-	info.fat_length = b->NumberOfFats * le32_to_cpu(b->FatLength) * info.sector_size;
+	info.fat_length = (uint64_t)le32_to_cpu(b->FatLength) * info.sector_size;
 	info.heap_offset = le32_to_cpu(b->ClusterHeapOffset);
 	info.root_offset = le32_to_cpu(b->FirstClusterOfRootDirectory);
 
@@ -1415,9 +1415,17 @@ void exfat_print_fat(void)
 	uint32_t i, j;
 	uint32_t *fat;
 	uint32_t contents;
-	size_t sector_num = (info.fat_length + (info.sector_size - 1)) / info.sector_size;
+	uint64_t sector_num64 = (info.fat_length + (info.sector_size - 1)) / info.sector_size;
+	size_t sector_num;
 	size_t list_size = 0;
 	node2_t **fat_chain, *tmp;
+
+	if (sector_num64 > SIZE_MAX ||
+			sector_num64 > SIZE_MAX / info.sector_size) {
+		pr_err("Can't print FAT\n");
+		return;
+	}
+	sector_num = (size_t)sector_num64;
 
 	if ((fat = malloc(info.sector_size * sector_num)) == NULL) {
 		pr_err("Can't print FAT\n");

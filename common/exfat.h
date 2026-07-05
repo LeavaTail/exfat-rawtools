@@ -71,7 +71,7 @@ struct exfat_info {
 	uint32_t cluster_size;
 	uint32_t cluster_count;
 	uint32_t fat_offset;
-	uint32_t fat_length;
+	uint64_t fat_length;
 	uint32_t heap_offset;
 	uint32_t root_offset;
 	uint32_t alloc_offset;
