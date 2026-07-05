@@ -47,6 +47,29 @@ static bool buffer_is_zero(const void *data, size_t len)
 	return true;
 }
 
+static void exfat_check_cluster_extent(uint32_t dir_clu, int index,
+		uint32_t first_clu, uint64_t data_len, bool contiguous)
+{
+	uint64_t cluster_num;
+
+	if (!data_len)
+		return;
+
+	if (first_clu < EXFAT_FIRST_CLUSTER ||
+			first_clu > info.cluster_count + 1) {
+		pr_err("clu#%u index#%d: FirstCluster(%u) is invalid for DataLength(%" PRIu64 ").\n",
+				dir_clu, index, first_clu, data_len);
+		return;
+	}
+
+	cluster_num = data_len / info.cluster_size + !!(data_len % info.cluster_size);
+	if (contiguous &&
+			(uint64_t)first_clu + cluster_num - 1 > info.cluster_count + 1) {
+		pr_err("clu#%u index#%d: cluster range FirstCluster(%u) DataLength(%" PRIu64 ") exceeds cluster heap.\n",
+				dir_clu, index, first_clu, data_len);
+	}
+}
+
 /**
  * get_input_size - get comparable input size in bytes
  * @s:              file status
@@ -1844,6 +1867,7 @@ int exfat_traverse_directory(uint32_t clu)
 	uint64_t valid_len = 0;
 	uint64_t data_len = 0;
 	uint64_t heap_size = (uint64_t)info.cluster_count * info.cluster_size;
+	uint32_t first_clu = 0;
 	void *data;
 	struct exfat_dentry d;
 	struct exfat_dentry file, stream;
@@ -1908,6 +1932,9 @@ int exfat_traverse_directory(uint32_t clu)
 					pr_err("clu#%u index#%d: DataLength(%" PRIu64 ") exceeds cluster heap size(%" PRIu64 ").\n",
 							clu, i, data_len, heap_size);
 				}
+				first_clu = le32_to_cpu(d.dentry.stream.FirstCluster);
+				exfat_check_cluster_extent(clu, i, first_clu, data_len,
+						d.dentry.stream.GeneralSecondaryFlags & ALLOC_NOFATCHAIN);
 				stream = d;
 				raw_length = d.dentry.stream.NameLength;
 				prev = DENTRY_STREAM;

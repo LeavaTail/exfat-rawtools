@@ -7,11 +7,12 @@ RET=0
 OUT=
 VDL_IMAGE=
 DL_IMAGE=
+FC_IMAGE=
 SHORT_IMAGE=
 
 set -eu -o pipefail
 trap 'echo "ERROR: l.$LINENO, exit status = $?" >&2; exit 1' ERR
-trap 'rm -f "${VDL_IMAGE}" "${DL_IMAGE}" "${SHORT_IMAGE}"' EXIT
+trap 'rm -f "${VDL_IMAGE}" "${DL_IMAGE}" "${FC_IMAGE}" "${SHORT_IMAGE}"' EXIT
 
 ### main function ###
 ${PROG} ${IMAGE}
@@ -40,6 +41,14 @@ printf '\x01\x00\xe0\x07\x00\x00\x00\x00' |
 	dd of="${DL_IMAGE}" bs=1 seek=$((0x203098)) conv=notrunc status=none
 OUT=$(${PROG} "${DL_IMAGE}")
 echo "$OUT" | grep -q "DataLength(132120577) exceeds cluster heap size(132120576)"
+echo "$OUT" | grep -q "result: issues found"
+
+FC_IMAGE=$(mktemp "${TMPDIR:-/tmp}/checkexfat-fc.XXXXXX.img")
+cp "${IMAGE}" "${FC_IMAGE}"
+printf '\x01\x00\x00\x00' |
+	dd of="${FC_IMAGE}" bs=1 seek=$((0x203094)) conv=notrunc status=none
+OUT=$(${PROG} "${FC_IMAGE}")
+echo "$OUT" | grep -q "FirstCluster(1) is invalid for DataLength(4096)"
 echo "$OUT" | grep -q "result: issues found"
 
 SHORT_IMAGE=$(mktemp "${TMPDIR:-/tmp}/checkexfat-short.XXXXXX.img")
