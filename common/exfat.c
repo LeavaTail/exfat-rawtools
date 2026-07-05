@@ -1762,6 +1762,8 @@ int exfat_traverse_directory(uint32_t clu)
 	__u8 prev = 0;
 	__u8 raw_count = 0;
 	__u8 raw_length = 0;
+	uint64_t valid_len = 0;
+	uint64_t data_len = 0;
 	void *data;
 	struct exfat_dentry d;
 	struct exfat_dentry file, stream;
@@ -1814,6 +1816,13 @@ int exfat_traverse_directory(uint32_t clu)
 							clu, i, raw_count);
 					prev = DENTRY_UNUSED;
 					continue;
+				}
+				valid_len = le64_to_cpu(d.dentry.stream.ValidDataLength);
+				data_len = le64_to_cpu(d.dentry.stream.DataLength);
+
+				if (valid_len > data_len) {
+					pr_err("clu#%u index#%d: ValidDataLength(%" PRIu64 ") exceeds DataLength(%" PRIu64 ").\n",
+							clu, i, valid_len, data_len);
 				}
 				stream = d;
 				raw_length = d.dentry.stream.NameLength;

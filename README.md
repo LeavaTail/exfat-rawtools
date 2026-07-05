@@ -72,6 +72,7 @@ Current check coverage:
 | META-003 | Timestamps | Detect timestamps that cannot be converted | warning | Printed only |
 | DIR-001 | Directory entries | Detect unexpected file/stream/name entry order | warning | Printed only |
 | DIR-002 | Directory entries | Validate secondary count and file name length | warning | Printed only |
+| DIR-003 | Directory entries | Validate Stream Extension `ValidDataLength <= DataLength` | error | Printed only |
 | FAT-001 | Cluster chain | Detect FAT chain shorter than file size | error | Printed only |
 | FAT-002 | Cluster chain | Detect FAT chain loop | error | Printed only |
 | FAT-003 | Cluster chain | Detect FAT entry pointing outside the cluster heap | error | Printed only |

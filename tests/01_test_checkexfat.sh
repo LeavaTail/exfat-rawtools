@@ -5,9 +5,11 @@ IMAGE=exfat.img
 FAILURE_IMAGE=error.img
 RET=0
 OUT=
+VDL_IMAGE=
 
 set -eu -o pipefail
 trap 'echo "ERROR: l.$LINENO, exit status = $?" >&2; exit 1' ERR
+trap 'rm -f "${VDL_IMAGE}"' EXIT
 
 ### main function ###
 ${PROG} ${IMAGE}
@@ -20,6 +22,14 @@ echo "$OUT" | grep -q "result: no issues found"
 
 OUT=$(${PROG} ${FAILURE_IMAGE})
 echo "$OUT" | grep -q "Summary:"
+echo "$OUT" | grep -q "result: issues found"
+
+VDL_IMAGE=$(mktemp "${TMPDIR:-/tmp}/checkexfat-vdl.XXXXXX.img")
+cp "${IMAGE}" "${VDL_IMAGE}"
+printf '\x01\x10\x00\x00\x00\x00\x00\x00' |
+	dd of="${VDL_IMAGE}" bs=1 seek=$((0x203088)) conv=notrunc status=none
+OUT=$(${PROG} "${VDL_IMAGE}")
+echo "$OUT" | grep -q "ValidDataLength(4097) exceeds DataLength(4096)"
 echo "$OUT" | grep -q "result: issues found"
 
 ### Option function ###
