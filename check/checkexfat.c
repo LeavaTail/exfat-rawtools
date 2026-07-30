@@ -183,6 +183,7 @@ int main(int argc, char *argv[])
 	uint8_t *alloc_table = NULL;
 	node2_t *tmp;
 	struct exfat_fileinfo *f;
+	size_t alloc_clusters;
 
 	while ((opt = getopt_long(argc, argv,
 					"",
@@ -233,7 +234,10 @@ int main(int argc, char *argv[])
 		goto out;
 	f = (struct exfat_fileinfo *)info.root[0]->data;
 
-	alloc_table = calloc(info.cluster_size, ROUNDUP(info.alloc_length, info.cluster_size));
+	alloc_clusters = ROUNDUP(info.alloc_length, info.cluster_size);
+	if (alloc_clusters > SIZE_MAX / info.cluster_size)
+		goto fat_free;
+	alloc_table = calloc(alloc_clusters, info.cluster_size);
 	if (!alloc_table)
 		goto fat_free;
 
