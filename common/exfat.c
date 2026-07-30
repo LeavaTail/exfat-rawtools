@@ -399,7 +399,7 @@ int exfat_store_info(struct exfat_bootsec *b)
 
 	if ((f = calloc(sizeof(struct exfat_fileinfo), 1)) == NULL)
 		return -ENOMEM;
-	if ((f->name = calloc(sizeof(unsigned char *), (strlen("/") + 1))) == NULL) {
+	if ((f->name = calloc(strlen("/") + 1, sizeof(*f->name))) == NULL) {
 		free(f);
 		return -ENOMEM;
 	}
