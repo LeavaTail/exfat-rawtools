@@ -170,7 +170,7 @@ int get_sector(void *data, off_t index, size_t count)
 	size_t bytes;
 	ssize_t ret;
 
-	if (index < 0 || count > SIZE_MAX / sector_size) {
+	if (index < 0 || count == 0 || !sector_size || count > SIZE_MAX / sector_size) {
 		pr_err("read: invalid range\n");
 		return -EINVAL;
 	}
@@ -212,7 +212,7 @@ int set_sector(void *data, off_t index, size_t count)
 	size_t bytes;
 	ssize_t ret;
 
-	if (index < 0 || count > SIZE_MAX / sector_size) {
+	if (index < 0 || count == 0 || !sector_size || count > SIZE_MAX / sector_size) {
 		pr_err("write: invalid range\n");
 		return -EINVAL;
 	}
