@@ -47,6 +47,27 @@ static bool buffer_is_zero(const void *data, size_t len)
 	return true;
 }
 
+static int exfat_fat_offset(uint32_t clu, off_t *offset)
+{
+	size_t entry_per_sector = info.sector_size / sizeof(uint32_t);
+	uint64_t sector;
+	uint64_t byte_offset;
+
+	if (!entry_per_sector)
+		return -EINVAL;
+
+	sector = (uint64_t)info.fat_offset + clu / entry_per_sector;
+	if (sector > (uint64_t)LLONG_MAX / info.sector_size)
+		return -EINVAL;
+
+	byte_offset = sector * info.sector_size;
+	if (byte_offset > (uint64_t)LLONG_MAX)
+		return -EINVAL;
+
+	*offset = (off_t)byte_offset;
+	return 0;
+}
+
 static void exfat_check_cluster_extent(uint32_t dir_clu, int index,
 		uint32_t first_clu, uint64_t data_len, bool contiguous)
 {
@@ -658,9 +679,9 @@ int exfat_get_fat(uint32_t clu, uint32_t *entry)
 {
 	int ret = -EINVAL;
 	size_t entry_per_sector = info.sector_size / sizeof(uint32_t);
-	uint32_t fat_index = (info.fat_offset +  clu / entry_per_sector) * info.sector_size;
+	off_t fat_index;
 	uint32_t *fat;
-	uint32_t offset = (clu) % entry_per_sector;
+	uint32_t offset;
 
 	if (clu == EXFAT_BADCLUSTER)
 		pr_err("Internal Error: Cluster %x is bad cluster.\n", clu);
@@ -673,6 +694,12 @@ int exfat_get_fat(uint32_t clu, uint32_t *entry)
 
 	if (ret)
 		return ret;
+	ret = exfat_fat_offset(clu, &fat_index);
+	if (ret) {
+		pr_err("Internal Error: FAT offset for cluster %u is invalid.\n", clu);
+		return ret;
+	}
+	offset = clu % entry_per_sector;
 
 	if ((fat = malloc(info.sector_size)) == NULL)
 		return -ENOMEM;
@@ -703,9 +730,9 @@ int exfat_set_fat(uint32_t clu, uint32_t entry)
 {
 	int ret = -EINVAL;
 	size_t entry_per_sector = info.sector_size / sizeof(uint32_t);
-	uint32_t fat_index = (info.fat_offset +  clu / entry_per_sector) * info.sector_size;
+	off_t fat_index;
 	uint32_t *fat;
-	uint32_t offset = (clu) % entry_per_sector;
+	uint32_t offset;
 
 	if (clu == EXFAT_BADCLUSTER || entry == EXFAT_BADCLUSTER)
 		pr_err("Internal Error: Cluster %x or Entry %x is bad cluster.\n", clu, entry);
@@ -721,6 +748,12 @@ int exfat_set_fat(uint32_t clu, uint32_t entry)
 
 	if (ret)
 		return ret;
+ret = exfat_fat_offset(clu, &fat_index);
+	if (ret) {
+		pr_err("Internal Error: FAT offset for cluster %u is invalid.\n", clu);
+		return ret;
+	}
+	offset = clu % entry_per_sector;
 
 	if ((fat = malloc(info.sector_size)) == NULL)
 		return -ENOMEM;
