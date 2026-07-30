@@ -4,13 +4,60 @@ PROG=./checkexfat
 IMAGE=exfat.img
 FAILURE_IMAGE=error.img
 RET=0
+OUT=
+VDL_IMAGE=
+DL_IMAGE=
+FC_IMAGE=
+SHORT_IMAGE=
 
 set -eu -o pipefail
 trap 'echo "ERROR: l.$LINENO, exit status = $?" >&2; exit 1' ERR
+trap 'rm -f "${VDL_IMAGE}" "${DL_IMAGE}" "${FC_IMAGE}" "${SHORT_IMAGE}"' EXIT
 
 ### main function ###
 ${PROG} ${IMAGE}
 ${PROG} ${FAILURE_IMAGE}
+
+OUT=$(${PROG} ${IMAGE})
+echo "$OUT" | grep -q "Summary:"
+echo "$OUT" | grep -q "diagnostics: 0 error(s), 0 warning(s)"
+echo "$OUT" | grep -q "result: no issues found"
+
+OUT=$(${PROG} ${FAILURE_IMAGE})
+echo "$OUT" | grep -q "Summary:"
+echo "$OUT" | grep -q "result: issues found"
+
+VDL_IMAGE=$(mktemp "${TMPDIR:-/tmp}/checkexfat-vdl.XXXXXX.img")
+cp "${IMAGE}" "${VDL_IMAGE}"
+printf '\x01\x10\x00\x00\x00\x00\x00\x00' |
+	dd of="${VDL_IMAGE}" bs=1 seek=$((0x203088)) conv=notrunc status=none
+OUT=$(${PROG} "${VDL_IMAGE}")
+echo "$OUT" | grep -q "ValidDataLength(4097) exceeds DataLength(4096)"
+echo "$OUT" | grep -q "result: issues found"
+
+DL_IMAGE=$(mktemp "${TMPDIR:-/tmp}/checkexfat-dl.XXXXXX.img")
+cp "${IMAGE}" "${DL_IMAGE}"
+printf '\x01\x00\xe0\x07\x00\x00\x00\x00' |
+	dd of="${DL_IMAGE}" bs=1 seek=$((0x203098)) conv=notrunc status=none
+OUT=$(${PROG} "${DL_IMAGE}")
+echo "$OUT" | grep -q "DataLength(132120577) exceeds cluster heap size(132120576)"
+echo "$OUT" | grep -q "result: issues found"
+
+FC_IMAGE=$(mktemp "${TMPDIR:-/tmp}/checkexfat-fc.XXXXXX.img")
+cp "${IMAGE}" "${FC_IMAGE}"
+printf '\x01\x00\x00\x00' |
+	dd of="${FC_IMAGE}" bs=1 seek=$((0x203094)) conv=notrunc status=none
+OUT=$(${PROG} "${FC_IMAGE}")
+echo "$OUT" | grep -q "FirstCluster(1) is invalid for DataLength(4096)"
+echo "$OUT" | grep -q "result: issues found"
+
+SHORT_IMAGE=$(mktemp "${TMPDIR:-/tmp}/checkexfat-short.XXXXXX.img")
+cp "${IMAGE}" "${SHORT_IMAGE}"
+truncate -s 1048576 "${SHORT_IMAGE}"
+OUT=$(${PROG} "${SHORT_IMAGE}" || true)
+echo "$OUT" | grep -q "VolumeLength requires"
+echo "$OUT" | grep -q "input size is 1048576 bytes"
+echo "$OUT" | grep -q "result: unreadable or incomplete check"
 
 ### Option function ###
 ${PROG} --help

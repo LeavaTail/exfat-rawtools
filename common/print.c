@@ -11,6 +11,9 @@
 #include <error.h>
 #include "print.h"
 
+unsigned int print_error_count;
+unsigned int print_warning_count;
+
 /**
  * hexdump - Hex dump of a given data
  * @data:    Input data

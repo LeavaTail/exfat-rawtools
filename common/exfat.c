@@ -12,7 +12,11 @@
 #include <errno.h>
 #include <ctype.h>
 #include <asm/byteorder.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
+#ifdef __linux__
+#include <linux/fs.h>
+#endif
 #include "bitmap.h"
 #include "exfat.h"
 
@@ -41,6 +45,91 @@ static bool buffer_is_zero(const void *data, size_t len)
 			return false;
 	}
 	return true;
+}
+
+static void exfat_check_cluster_extent(uint32_t dir_clu, int index,
+		uint32_t first_clu, uint64_t data_len, bool contiguous)
+{
+	uint64_t cluster_num;
+
+	if (!data_len)
+		return;
+
+	if (first_clu < EXFAT_FIRST_CLUSTER ||
+			first_clu > info.cluster_count + 1) {
+		pr_err("clu#%u index#%d: FirstCluster(%u) is invalid for DataLength(%" PRIu64 ").\n",
+				dir_clu, index, first_clu, data_len);
+		return;
+	}
+
+	cluster_num = data_len / info.cluster_size + !!(data_len % info.cluster_size);
+	if (contiguous &&
+			(uint64_t)first_clu + cluster_num - 1 > info.cluster_count + 1) {
+		pr_err("clu#%u index#%d: cluster range FirstCluster(%u) DataLength(%" PRIu64 ") exceeds cluster heap.\n",
+				dir_clu, index, first_clu, data_len);
+	}
+}
+
+/**
+ * get_input_size - get comparable input size in bytes
+ * @s:              file status
+ * @size:           input size in bytes (Output)
+ *
+ * @return:         1 (size was obtained)
+ *                  0 (size is not available for this input)
+ *                 <0 (failed)
+ */
+static int get_input_size(const struct stat *s, uint64_t *size)
+{
+	if (S_ISREG(s->st_mode)) {
+		if (s->st_size < 0)
+			return -EINVAL;
+		*size = s->st_size;
+		return 1;
+	}
+
+#ifdef BLKGETSIZE64
+	if (S_ISBLK(s->st_mode)) {
+		if (ioctl(info.fd, BLKGETSIZE64, size) < 0)
+			return 0;
+		return 1;
+	}
+#endif
+
+	return 0;
+}
+
+/**
+ * exfat_check_volume_size - compare VolumeLength with input size
+ * @s:                       file status
+ *
+ * @return:                  0 (success or skipped)
+ *                           <0 (failed)
+ */
+static int exfat_check_volume_size(const struct stat *s)
+{
+	int ret;
+	uint64_t input_size = 0;
+	uint64_t volume_size;
+
+	if (info.sector_size && info.vol_size > UINT64_MAX / info.sector_size) {
+		pr_err("VolumeLength is too large: %" PRIu64 " sectors * %u bytes.\n",
+				info.vol_size, info.sector_size);
+		return -EINVAL;
+	}
+
+	volume_size = info.vol_size * info.sector_size;
+	ret = get_input_size(s, &input_size);
+	if (ret <= 0)
+		return ret;
+
+	if (input_size < volume_size) {
+		pr_err("VolumeLength requires %" PRIu64 " bytes, but input size is %" PRIu64 " bytes.\n",
+				volume_size, input_size);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**
@@ -272,13 +361,6 @@ int exfat_store_info(struct exfat_bootsec *b)
 		return -errno;
 	}
 
-	if ((f = calloc(sizeof(struct exfat_fileinfo), 1)) == NULL)
-		return -ENOMEM;
-	if ((f->name = calloc(sizeof(unsigned char *), (strlen("/") + 1))) == NULL) {
-		free(f);
-		return -ENOMEM;
-	}
-
 	info.total_size = s.st_size;
 	info.partition_offset = le64_to_cpu(b->PartitionOffset);
 	info.vol_size = le64_to_cpu(b->VolumeLength);
@@ -286,9 +368,21 @@ int exfat_store_info(struct exfat_bootsec *b)
 	info.cluster_size = (1 << b->SectorsPerClusterShift) * info.sector_size;
 	info.cluster_count = le32_to_cpu(b->ClusterCount);
 	info.fat_offset = le32_to_cpu(b->FatOffset);
-	info.fat_length = b->NumberOfFats * le32_to_cpu(b->FatLength) * info.sector_size;
+	info.fat_length = (uint64_t)le32_to_cpu(b->FatLength) * info.sector_size;
 	info.heap_offset = le32_to_cpu(b->ClusterHeapOffset);
 	info.root_offset = le32_to_cpu(b->FirstClusterOfRootDirectory);
+
+	ret = exfat_check_volume_size(&s);
+	if (ret)
+		return ret;
+
+	if ((f = calloc(sizeof(struct exfat_fileinfo), 1)) == NULL)
+		return -ENOMEM;
+	if ((f->name = calloc(sizeof(unsigned char *), (strlen("/") + 1))) == NULL) {
+		free(f);
+		return -ENOMEM;
+	}
+
 	info.root[0] = init_node2(info.root_offset, f);
 	if (!info.root[0]) {
 		free(f->name);
@@ -298,7 +392,7 @@ int exfat_store_info(struct exfat_bootsec *b)
 
 	strncpy((char *)f->name, "/", strlen("/") + 1);
 	f->namelen = strlen("/");
-	f->datalen = info.cluster_count * info.cluster_size;
+	f->datalen = (uint64_t)info.cluster_count * info.cluster_size;
 	f->attr = ATTR_DIRECTORY;
 	f->clu = le32_to_cpu(b->FirstClusterOfRootDirectory);
 
@@ -1344,9 +1438,17 @@ void exfat_print_fat(void)
 	uint32_t i, j;
 	uint32_t *fat;
 	uint32_t contents;
-	size_t sector_num = (info.fat_length + (info.sector_size - 1)) / info.sector_size;
+	uint64_t sector_num64 = (info.fat_length + (info.sector_size - 1)) / info.sector_size;
+	size_t sector_num;
 	size_t list_size = 0;
 	node2_t **fat_chain, *tmp;
+
+	if (sector_num64 > SIZE_MAX ||
+			sector_num64 > SIZE_MAX / info.sector_size) {
+		pr_err("Can't print FAT\n");
+		return;
+	}
+	sector_num = (size_t)sector_num64;
 
 	if ((fat = malloc(info.sector_size * sector_num)) == NULL) {
 		pr_err("Can't print FAT\n");
@@ -1762,6 +1864,10 @@ int exfat_traverse_directory(uint32_t clu)
 	__u8 prev = 0;
 	__u8 raw_count = 0;
 	__u8 raw_length = 0;
+	uint64_t valid_len = 0;
+	uint64_t data_len = 0;
+	uint64_t heap_size = (uint64_t)info.cluster_count * info.cluster_size;
+	uint32_t first_clu = 0;
 	void *data;
 	struct exfat_dentry d;
 	struct exfat_dentry file, stream;
@@ -1815,6 +1921,20 @@ int exfat_traverse_directory(uint32_t clu)
 					prev = DENTRY_UNUSED;
 					continue;
 				}
+				valid_len = le64_to_cpu(d.dentry.stream.ValidDataLength);
+				data_len = le64_to_cpu(d.dentry.stream.DataLength);
+
+				if (valid_len > data_len) {
+					pr_err("clu#%u index#%d: ValidDataLength(%" PRIu64 ") exceeds DataLength(%" PRIu64 ").\n",
+							clu, i, valid_len, data_len);
+				}
+				if (data_len > heap_size) {
+					pr_err("clu#%u index#%d: DataLength(%" PRIu64 ") exceeds cluster heap size(%" PRIu64 ").\n",
+							clu, i, data_len, heap_size);
+				}
+				first_clu = le32_to_cpu(d.dentry.stream.FirstCluster);
+				exfat_check_cluster_extent(clu, i, first_clu, data_len,
+						d.dentry.stream.GeneralSecondaryFlags & ALLOC_NOFATCHAIN);
 				stream = d;
 				raw_length = d.dentry.stream.NameLength;
 				prev = DENTRY_STREAM;

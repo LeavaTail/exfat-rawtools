@@ -68,6 +68,25 @@ static void version(const char *command_name, const char *version, const char *a
 }
 
 /**
+ * print_summary - print check result summary
+ * @completed:       true if all check steps completed
+ */
+static void print_summary(bool completed)
+{
+	pr_msg("\nSummary:\n");
+	pr_msg("  check: %s\n", completed ? "completed" : "aborted");
+	pr_msg("  diagnostics: %u error(s), %u warning(s)\n",
+			print_error_count, print_warning_count);
+
+	if (!completed)
+		pr_msg("  result: unreadable or incomplete check\n");
+	else if (print_error_count || print_warning_count)
+		pr_msg("  result: issues found\n");
+	else
+		pr_msg("  result: no issues found\n");
+}
+
+/**
  * exfat_set_bitmap - set bit at @clu in @b
  * @b                 Allocation bitmap cache
  * @clu               cluster
@@ -246,6 +265,7 @@ int main(int argc, char *argv[])
 fat_free:
 	free(alloc_table);
 out:
+	print_summary(ret == EXIT_SUCCESS);
 	exfat_clean_info();
 	return ret;
 }
