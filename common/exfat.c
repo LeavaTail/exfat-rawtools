@@ -1738,7 +1738,11 @@ int exfat_load_upcase_cluster(struct exfat_dentry d)
 		return -EINVAL;
 
 	fstclu = le32_to_cpu(d.dentry.upcase.FirstCluster);
-	datalen = le64_to_cpu(d.dentry.upcase.DataLength);
+	datalen = le32_to_cpu(d.dentry.upcase.DataLength);
+	if (datalen == 0) {
+		pr_err("invalid Up-case table length: %" PRIu32 "\n", datalen);
+		return -EINVAL;
+	}
 
 	pr_debug("Get: Up-case table: cluster 0x%x, size: 0x%" PRIx32 "\n", fstclu, datalen);
 	info.upcase_offset = fstclu;
